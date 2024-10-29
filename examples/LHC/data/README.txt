@@ -1,0 +1,1 @@
+This folder is empty until 'generate_figs.ipynb' is run
