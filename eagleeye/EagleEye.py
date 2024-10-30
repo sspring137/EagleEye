@@ -11,7 +11,7 @@ Created on Thu Sep 19 15:54:23 2024
 """
 Created on Mon Apr 23 09:18:50 2024
 
-Authors: Sebastian Springer (sspringe137) and Alessandro Laio
+Authors: Sebastian Springer (sspringe137), Andre Scaffidi (AndreScaffidi) and Alessandro Laio
 
 --------------------------------------------------------------------------------
 ## Non-Commercial Academic and Research License (NCARL) v1.0
@@ -23,7 +23,7 @@ Authors: Sebastian Springer (sspringe137) and Alessandro Laio
 2. **Non-Commercial Use**: Non-commercial use includes any use that is not intended for or directed towards commercial advantage or monetary compensation. Examples include academic research, teaching, and personal experimentation.
 
 3. **Acknowledgment**: Any publications or products that use the software must include the following acknowledgment:
-   - "This software uses EagleEye developed by Sebastian Springer and Alessandro Laio at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
+   - "This software uses EagleEye developed by Sebastian Springer, Alessandro Laio and Andre Scaffidi at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
 
 4. **Modification and Distribution**: Users are allowed to modify and distribute the software for non-commercial purposes, provided they include this license with any distribution and acknowledge the original authors.
 
@@ -31,7 +31,7 @@ Authors: Sebastian Springer (sspringe137) and Alessandro Laio
 
 ### Contact Information
 
-For commercial licensing, please contact Sebastian Springer at sebastian.springer@sissa.it and Alessandro Laio at laio@sissa.it or in person at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy).
+For commercial licensing, please contact Sebastian Springer at sebastian.springer@sissa.it (doc.sebastian.springer@gmail.com).
 --------------------------------------------------------------------------------
 
 ## Commercial License Agreement (CLA) v1.0
@@ -42,7 +42,7 @@ For commercial licensing, please contact Sebastian Springer at sebastian.springe
 
 2. **Commercial Use Definition**: Commercial use includes any use intended for or directed towards commercial advantage or monetary compensation. This includes, but is not limited to, use in a commercial product, offering services with the software, or using the software in a revenue-generating activity.
 
-3. **Licensing Fees**: The licensee agrees to negotiate and pay a licensing fee with the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy), for commercial use of the software. Contact Sebastian Springer and Alessandro Laio for details on pricing and payment terms.
+3. **Licensing Fees**: The licensee agrees to negotiate and pay a licensing fee for commercial use of the software. 
 
 4. **Modification and Distribution**: Users are allowed to modify and distribute the software under the terms of this commercial license, provided they include this license with any distribution and acknowledge the original authors.
 
@@ -50,7 +50,7 @@ For commercial licensing, please contact Sebastian Springer at sebastian.springe
 
 ### Contact Information
 
-For licensing fees, terms, and support, please contact Sebastian Springer at sebastian.springer@sissa.it and Alessandro Laio at laio@sissa.it.
+For licensing fees, terms, and support, please contact Sebastian Springer at sebastian.springer@sissa.it (doc.sebastian.springer@gmail.com).
 --------------------------------------------------------------------------------
 """
 import numpy as np

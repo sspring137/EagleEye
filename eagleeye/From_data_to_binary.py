@@ -6,50 +6,57 @@ Created on Wed Jun  5 13:59:01 2024
 @author: Sebastian Springer (sspringe137)
 """
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Apr 23 09:18:50 2024
+
+Authors: Sebastian Springer (sspringe137), Andre Scaffidi (AndreScaffidi) and Alessandro Laio
+
+--------------------------------------------------------------------------------
+## Non-Commercial Academic and Research License (NCARL) v1.0
+
+### Terms and Conditions
+
+1. **Grant of License**: Permission is hereby granted, free of charge, to any person or organization obtaining a copy of this software to use, copy, modify, and distribute the software for academic research, educational purposes, and personal non-commercial projects, subject to the following conditions:
+
+2. **Non-Commercial Use**: Non-commercial use includes any use that is not intended for or directed towards commercial advantage or monetary compensation. Examples include academic research, teaching, and personal experimentation.
+
+3. **Acknowledgment**: Any publications or products that use the software must include the following acknowledgment:
+   - "This software uses EagleEye developed by Sebastian Springer, Alessandro Laio and Andre Scaffidi at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
+
+4. **Modification and Distribution**: Users are allowed to modify and distribute the software for non-commercial purposes, provided they include this license with any distribution and acknowledge the original authors.
+
+5. **No Warranty**: The software is provided "as-is" without any warranty of any kind.
+
+### Contact Information
+
+For commercial licensing, please contact Sebastian Springer at sebastian.springer@sissa.it (doc.sebastian.springer@gmail.com).
+--------------------------------------------------------------------------------
+
+## Commercial License Agreement (CLA) v1.0
+
+### Terms and Conditions
+
+1. **Grant of License**: Permission is hereby granted to any person or organization obtaining a copy of this software for commercial use, provided they comply with the terms and conditions outlined in this agreement and pay the applicable licensing fees.
+
+2. **Commercial Use Definition**: Commercial use includes any use intended for or directed towards commercial advantage or monetary compensation. This includes, but is not limited to, use in a commercial product, offering services with the software, or using the software in a revenue-generating activity.
+
+3. **Licensing Fees**: The licensee agrees to negotiate and pay a licensing fee for commercial use of the software. 
+
+4. **Modification and Distribution**: Users are allowed to modify and distribute the software under the terms of this commercial license, provided they include this license with any distribution and acknowledge the original authors.
+
+5. **Warranty**: The software is provided with a limited warranty as outlined in the commercial licensing agreement. Details of the warranty can be provided upon request.
+
+### Contact Information
+
+For licensing fees, terms, and support, please contact Sebastian Springer at sebastian.springer@sissa.it (doc.sebastian.springer@gmail.com).
+--------------------------------------------------------------------------------
+"""
 import numpy as np
 from scipy.spatial.distance import cdist
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from IPython.display import display
-# from annoy import AnnoyIndex
-
-
-# def create_binary_array_annoy(data, num_trees=10, num_neighbors=1000):
-#     """
-#     Create a binary array indicating if the nearest neighbor is from the first half or second half of the dataset.
-
-#     Args:
-#     data (np.ndarray): Input data matrix of shape (n, d).
-#     num_trees (int): Number of trees to build in Annoy index.
-#     num_neighbors (int): Number of nearest neighbors to find.
-
-#     Returns:
-#     np.ndarray: Binary array of shape (n, num_neighbors).
-#     """
-#     # Creating Annoy index
-#     f = data.shape[1]  # Number of features
-#     t = AnnoyIndex(f, 'angular')  # Length of item vector that will be indexed
-
-#     # Adding items to the index
-#     for i in range(data.shape[0]):
-#         t.add_item(i, data[i])
-
-#     # Building the index
-#     t.build(num_trees)
-
-#     # Getting nearest neighbors
-#     nearest_neighbors = {}
-#     for i in range(t.get_n_items()):
-#         nearest_neighbors[i] = t.get_nns_by_item(i, num_neighbors)
-
-#     # Create a binary array based on nearest neighbors
-#     binary_sequences = np.zeros((data.shape[0], num_neighbors), dtype=int)
-#     halfway_point = data.shape[0] // 2
-
-#     for i, neighbors in nearest_neighbors.items():
-#         binary_sequences[i] = [1 if neighbor >= halfway_point else 0 for neighbor in neighbors]
-
-#     # Returning the binary array
-#     return binary_sequences[halfway_point:,:]
 
 
 def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10, time_series=0, partition_size = 100):
