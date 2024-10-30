@@ -17,3 +17,27 @@ EagleEye has several key features:
 
 ## Examples
 The `examples/` directory contains code to regenerate the figures from the main text and supplementary information of the paper. 
+
+## Licensing
+
+EagleEye is available under a dual licensing model:
+
+- **Non-Commercial Academic and Research License (NCARL) v1.0**: Free for academic research, educational purposes, and personal non-commercial projects.
+- **Commercial License Agreement (CLA) v1.0**: Required for commercial use.
+
+### Non-Commercial Use
+
+For non-commercial use, see the [Non-Commercial Academic and Research License](NON-COMMERCIAL-LICENSE.md).
+
+### Commercial Use
+
+For commercial use, please see the [Commercial License Agreement](COMMERCIAL-LICENSE.md).
+
+## Acknowledgment
+
+If you use EagleEye in your publications please include an propriate citation to the article linked with tis repository. For products, please include the following acknowledgment:
+- "This software uses EagleEye developed by Sebastian Springer Alessandro Laio and Andre Scaffidi at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
+
+## Disclaimer
+
+The software is provided "as-is" without any warranty of any kind.
