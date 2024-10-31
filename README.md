@@ -1,6 +1,8 @@
 
 # `EagleEye`: A general purpose density anomaly detection method
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14016472.svg)](https://doi.org/10.5281/zenodo.14016472)
+
 ![Example Image](eagleeye/F0_EagleEye.png)
 <small>
 Above: Toroidal anomalies are captured in 10-dimensional gaussian data by `EagleEye`. 
