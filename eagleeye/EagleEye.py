@@ -208,3 +208,21 @@ class PValueCalculatorParallel(PValueCalculator):
         chunk_size = len(kstar_range) // num_chunks
         kstar_chunks = [kstar_range[i:i + chunk_size] for i in range(0, len(kstar_range), chunk_size)]
         return kstar_chunks
+    
+    
+# Function to calculate the p-values for a given binary sequence
+def calculate_p_values(binary_sequence, kstar_range,num_cores=1,validation=None): 
+    """
+    Returns pvalues and k_stars for analysis and validation (if present).
+    """
+    p_val_info = PValueCalculatorParallel(binary_sequence, kstar_range,num_cores=num_cores,p=0.5).smallest_pval_info
+    NLPval = -np.log(np.array(p_val_info['min_pval']))
+    if validation is not None:
+        if isinstance(validation, int):
+            len_val = validation
+        else:
+            len_val = len(validation)
+        return NLPval[:-len_val], p_val_info['kstar_min_pval'][:-len_val], NLPval[-len_val:], p_val_info['kstar_min_pval'][-len_val:]
+    
+    else:
+        return NLPval, p_val_info['kstar_min_pval']
