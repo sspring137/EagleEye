@@ -59,7 +59,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from IPython.display import display
 
 
-def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10, time_series=0, partition_size = 100):
+def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10,validation=None,partition_size=100):
     """
     Create a binary array indicating if the nearest neighbor is from the first half or second half of the dataset.
 
@@ -67,22 +67,41 @@ def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=10
     mixed_samples (np.ndarray): Input test data matrix of shape (n, d).
     reference_samples (np.ndarray): Input reference data matrix of shape (n, d).
     num_neighbors (int): Number of nearest neighbors to find.
-    num_cores (int): Number of cores to use for parallel processing.
-    time_series (int): Number of time steps to exclude around each sample.
+    validation (np.ndarray or int): Indicies of validation set, or size of validation set you want to use.
+    partition_size (int): Size of the partition to be processed in parallel.
 
     Returns:
     np.ndarray: Binary array of shape (n, num_neighbors).
-    np.ndarray: Neighborhood indexes of shape (n, num_neighbors).
     """
-    if time_series > 0:
-        adjusted_neighbors = num_neighbors + time_series
-    else:
-        adjusted_neighbors = num_neighbors
 
-    D_parallel = calculate_distances_parallel(mixed_samples, reference_samples, adjusted_neighbors, num_cores,partition_size)
-    binary_array_cdist_parallel, neighbourhood_indexes = process_distances(D_parallel, num_neighbors, time_series)
+    # Decice if we need to add validation samples to the mixed_samples:
+    # The below is effectively injecting one validation sample at time, but for computational purposes we 
+    # can inject all validation samples at once and just adjust the neighbourhood indexes accordingly.
+    if validation is not None: 
+        if isinstance(validation, int):
+            print("Validation size is: ", validation)
+            val_size                  = validation
+            mixed_samples             = np.concatenate((mixed_samples, reference_samples[:val_size,:] ), axis=0) # Stack validation samples on the bottom!!!
+            reference_samples         = reference_samples[val_size:,:]
+        else :
+            print("Validation index list size is: ", len(validation))
+            validation_samples        = reference_samples[validation,:]
+            mixed_samples             = np.concatenate((mixed_samples, validation_samples ), axis=0) # Stack validation samples on the bottom!!!
+            reference_samples         = np.delete(reference_samples, validation, axis=0)
+
+    # Calculate! 
+    D_parallel                                         = calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors, num_cores,partition_size=partition_size)
+    binary_array_cdist_parallel, neighbourhood_indexes = process_distances(D_parallel, num_neighbors)
+
+    # Lastly, adjust the neighbourhood indexes if validation is not None
+    if validation is not None:
+        for index, row in enumerate(binary_array_cdist_parallel):
+            neigh                              = (neighbourhood_indexes[:,:1000][index]>=int(len(mixed_samples)-len(validation)))
+            binary_array_cdist_parallel[index,(neigh) & (row==True)] = 0
+            binary_array_cdist_parallel[:,0]                         =  1
+
+
     return binary_array_cdist_parallel, neighbourhood_indexes
-
 
 
 def compute_sorted_distances(samples1, samples2, num_neighbors):
