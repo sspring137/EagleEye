@@ -216,13 +216,27 @@ def calculate_p_values(binary_sequence, kstar_range,num_cores=1,validation=None)
     Returns pvalues and k_stars for analysis and validation (if present).
     """
     p_val_info = PValueCalculatorParallel(binary_sequence, kstar_range,num_cores=num_cores,p=0.5).smallest_pval_info
-    NLPval = -np.log(np.array(p_val_info['min_pval']))
+    Upsilon_i = -np.log(np.array(p_val_info['min_pval']))
+
+    statistics = {}
+    statistics['Upsilon_i'] = []
+    statistics['kstar_'] = []
+    statistics['Upsilon_i_Val'] = []
+    statistics['kstar_Val'] = []
+
     if validation is not None:
         if isinstance(validation, int):
             len_val = validation
         else:
             len_val = len(validation)
-        return NLPval[:-len_val], p_val_info['kstar_min_pval'][:-len_val], NLPval[-len_val:], p_val_info['kstar_min_pval'][-len_val:]
-    
+        
+        statistics['Upsilon_i_Val'] = Upsilon_i[-len_val:]
+        statistics['kstar_Val'] = p_val_info['kstar_min_pval'][-len_val:]
+        statistics['Upsilon_i'] = Upsilon_i[:-len_val]
+        statistics['kstar_'] = p_val_info['kstar_min_pval'][:-len_val]
+
     else:
-        return NLPval, p_val_info['kstar_min_pval']
+        statistics['Upsilon_i'] = Upsilon_i
+        statistics['kstar_'] = p_val_info['kstar_min_pval']
+
+    return statistics
