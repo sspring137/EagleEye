@@ -56,7 +56,7 @@ For licensing fees, terms, and support, please contact Sebastian Springer at seb
 import numpy as np
 from scipy.stats import binom
 import pickle
-import multiprocessing as mp
+from multiprocessing import Pool
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 class PValueCalculator:
@@ -147,17 +147,31 @@ class PValueCalculator:
         with open(filename, 'wb') as f:
             pickle.dump(self.smallest_pval_info, f)
 
+# Global function to be used by Pool.map
+def global_compute_pval_array_chunk(args):
+    """
+    Global function that computes p-value arrays for a chunk of kstar values.
+    This function is needed because Pool.map requires a top-level function.
+    
+    :param args: A tuple containing (binary_sequence, p, pmf_results, kstar_chunk)
+    :return: A dictionary {kstar: pval_array} for the given chunk.
+    """
+    binary_sequence, p, pmf_results, kstar_chunk = args
+    # Compute p-value arrays for each kstar in the chunk
+    # The compute_pval_array function will need to be accessible here.
+    # If it's an instance method from PValueCalculator, consider making it a
+    # static/global function or replicate the logic here.
+    result = {}
+    for kstar in kstar_chunk:
+        result[kstar] = compute_pval_array(binary_sequence, kstar, p, pmf_results)
+    return result
+
 
 class PValueCalculatorParallel(PValueCalculator):
     def __init__(self, binary_sequence, kstar_range, p=0.5, pmf_results=None, num_cores=10):
         """
-        Initialize the PValueCalculatorParallel with a binary sequence, a range of k* values, optionally precomputed PMFs,
-        and the number of cores for parallel processing.
-        :param binary_sequence: A numpy array of binary values.
-        :param kstar_range: A range or list of integers representing different sequence lengths for p-value calculations.
-        :param p: The probability for the binomial distribution.
-        :param pmf_results: Optional dictionary of precomputed PMFs for each k in kstar_range.
-        :param num_cores: Integer, the number of cores to use for parallel processing.
+        Initialize the PValueCalculatorParallel with a binary sequence, a range of k* values,
+        optionally precomputed PMFs, and the number of cores for parallel processing.
         """
         self.binary_sequence = binary_sequence
         self.kstar_range = kstar_range
@@ -167,21 +181,53 @@ class PValueCalculatorParallel(PValueCalculator):
         self.pmf_results = pmf_results if pmf_results is not None else self.compute_pmf_results()
         
         kstar_chunks = self.chunk_kstar_range(kstar_range, self.num_cores)
+        print(f'Processing {len(kstar_range)} kstar values in {len(kstar_chunks)} partitions.')
+        print(kstar_chunks[0], kstar_chunks[-1])
+        
         self.pval_array_dict = {}
-        
+        num_partitions = len(kstar_chunks)
+
+        def process_and_store(future):
+            chunk_idx, result = future.result()
+            # Update the dictionary with the results for this chunk
+            self.pval_array_dict.update(result)
+            print(f'Processing partition for upsilon calculation {chunk_idx + 1}/{num_partitions} completed.')
+
         with ProcessPoolExecutor(max_workers=self.num_cores) as executor:
-            future_to_kstar = {executor.submit(self._compute_pval_array_chunk, chunk): chunk for chunk in kstar_chunks}
-            for future in as_completed(future_to_kstar):
-                chunk = future_to_kstar[future]
-                try:
-                    result = future.result()
-                    self.pval_array_dict.update(result)
-                    print(f'Processing partition {kstar_chunks.index(chunk) + 1}/{len(kstar_chunks)} completed.')
-                except Exception as exc:
-                    print(f'Processing partition {kstar_chunks.index(chunk) + 1}/{len(kstar_chunks)} generated an exception: {exc}')
-        
+            # Submit tasks, passing an index and the chunk for identification
+            futures = [
+                executor.submit(self._compute_pval_array_chunk_with_index, idx, chunk)
+                for idx, chunk in enumerate(kstar_chunks)
+            ]
+
+            # Process results as they complete
+            for future in as_completed(futures):
+                process_and_store(future)
+
         self.smallest_pval_info = self.compute_smallest_pval_info()
+
+    def _compute_pval_array_chunk_with_index(self, chunk_idx, kstar_chunk):
+        """
+        Compute p-value arrays for a chunk of kstar values and return with the chunk index.
+        """
+        result = {kstar: self.compute_pval_array(kstar) for kstar in kstar_chunk}
+        return chunk_idx, result
     
+    def chunk_kstar_range(self, kstar_range, num_chunks):
+        """
+        Divide the kstar range into chunks for parallel processing.
+        """
+        chunk_size = len(kstar_range) // num_chunks
+        if chunk_size == 0:  # In case num_chunks > len(kstar_range)
+            return [kstar_range]  # Just one chunk with everything
+
+        # For uneven distribution, you can still reorder kstar_range if desired.
+        kstar_chunks = [kstar_range[i:i + chunk_size] for i in range(0, len(kstar_range), chunk_size)]
+
+        # If the last chunk is smaller, that's typically acceptable.
+        return kstar_chunks
+
+
     def _compute_pval_array_mp(self, kstar):
         """
         Helper function to compute p-value arrays for a given kstar in parallel.
@@ -198,24 +244,67 @@ class PValueCalculatorParallel(PValueCalculator):
         """
         return {kstar: self.compute_pval_array(kstar) for kstar in kstar_chunk}
     
-    def chunk_kstar_range(self, kstar_range, num_chunks):
-        """
-        Divide the kstar range into chunks for parallel processing.
-        :param kstar_range: A range or list of kstar values.
-        :param num_chunks: Integer, the number of chunks to divide the range into.
-        :return: List of numpy arrays, each representing a chunk of kstar values.
-        """
-        chunk_size = len(kstar_range) // num_chunks
-        kstar_chunks = [kstar_range[i:i + chunk_size] for i in range(0, len(kstar_range), chunk_size)]
-        return kstar_chunks
-    
+    # def chunk_kstar_range(self, kstar_range, num_chunks):
+    #     """
+    #     Divide the kstar range into chunks for parallel processing.
+    #     :param kstar_range: A range or list of kstar values.
+    #     :param num_chunks: Integer, the number of chunks to divide the range into.
+    #     :return: List of numpy arrays, each representing a chunk of kstar values.
+    #     """
+    #     chunk_size = len(kstar_range) // num_chunks
+    #     kstar_chunks = [kstar_range[i:i + chunk_size] for i in range(0, len(kstar_range), chunk_size)]
+    #     return kstar_chunks
+
+    # def chunk_kstar_range(self, kstar_range, num_chunks):
+    #     """
+    #     Divide the kstar range into chunks for parallel processing, but first reorder the array
+    #     by taking elements from both ends towards the center: first from the start, then from the end,
+    #     and so on.
+
+    #     :param kstar_range: A list of kstar values.
+    #     :param num_chunks: Integer, the number of chunks to divide the range into.
+    #     :return: List of numpy arrays, each representing a chunk of kstar values.
+    #     """
+    #     # Convert to a list if it's not already
+    #     kstar_list = list(kstar_range)
+    #     reordered = []
+    #     start = 0
+    #     end = len(kstar_list) - 1
+
+    #     while start <= end:
+    #         if start == end:
+    #             # If there's a single element left, just append it
+    #             reordered.append(kstar_list[start])
+    #         else:
+    #             # Take one from the start
+    #             reordered.append(kstar_list[start])
+    #             # And one from the end
+    #             reordered.append(kstar_list[end])
+    #         start += 1
+    #         end -= 1
+
+    #     # Now chunk the reordered list
+    #     chunk_size = max(1, len(reordered) // num_chunks)  # ensure chunk_size is at least 1
+    #     kstar_chunks = [reordered[i:i + chunk_size] for i in range(0, len(reordered), chunk_size)]
+
+    #     # It's possible the last chunk may be smaller than others if len doesn't divide evenly.
+    #     # But this is typically acceptable. If you need equal sizes, you'll need a different approach.
+
+    #     return kstar_chunks
+
+
+
+
+
     
 # Function to calculate the p-values for a given binary sequence
-def calculate_p_values(binary_sequence, kstar_range,num_cores=1,validation=None): 
+def calculate_p_values(binary_sequence, kstar_range, num_cores=10,validation=None): 
     """
     Returns pvalues and k_stars for analysis and validation (if present).
     """
     p_val_info = PValueCalculatorParallel(binary_sequence, kstar_range,num_cores=num_cores,p=0.5).smallest_pval_info
+    # p_val_info = PValueCalculator(binary_sequence, kstar_range,p=0.5).smallest_pval_info
+
     Upsilon_i = -np.log(np.array(p_val_info['min_pval']))
 
     statistics = {}
