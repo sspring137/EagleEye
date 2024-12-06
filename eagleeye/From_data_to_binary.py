@@ -115,6 +115,7 @@ def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=10
             val_idx_ch2 = val_idx[int(val_size/2):]
 
             # Maunal partitioning of validation (only two partitions)
+  
             validation_samples_ch1        = reference_samples[val_idx_ch1,:]
             mixed_samples_ch1             = np.concatenate((mixed_samples, validation_samples_ch1 ), axis=0) # Stack validation samples on the bottom!!!
             reference_samples_ch1         = np.delete(reference_samples, val_idx_ch1, axis=0)
@@ -123,18 +124,21 @@ def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=10
             for index, row in enumerate(binary_array_cdist_parallel_ch1):
                 neigh                              = (neighbourhood_indexes[:,:num_neighbors][index]>=int(len(mixed_samples_ch1)-len(val_idx_ch1)))
                 binary_array_cdist_parallel_ch1[index,(neigh) & (row==True)] = 0
-                binary_array_cdist_parallel_ch1[:,0]                         =  1
+                binary_array_cdist_parallel_ch1[:,0]                         = 1
             del(D_parallel)
             del(neighbourhood_indexes)
 
 
             # Second chunk
+
+
             validation_samples_ch2        = reference_samples[val_idx_ch2,:]
             mixed_samples_ch2             = np.concatenate((mixed_samples, validation_samples_ch2 ), axis=0) # Stack validation samples on the bottom!!!
             reference_samples_ch2         = np.delete(reference_samples, val_idx_ch2, axis=0)
             D_parallel                    = calculate_distances_parallel(mixed_samples_ch2, reference_samples_ch2, num_neighbors, num_cores,partition_size=partition_size)
 
             binary_array_cdist_parallel_ch2, neighbourhood_indexes = process_distances(D_parallel, num_neighbors)
+
             for index, row in enumerate(binary_array_cdist_parallel_ch2):
                 neigh                              = (neighbourhood_indexes[:,:num_neighbors][index]>=int(len(mixed_samples_ch2)-len(val_idx_ch2)))
                 binary_array_cdist_parallel_ch2[index,(neigh) & (row==True)] = 0
@@ -187,28 +191,92 @@ def process_partition(partition_idx, mixed_samples, reference_samples, num_neigh
     return start_idx, end_idx, sorted_Y, sorted_Y1, sorted_idx, sorted_idx1
 
 
-def calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10, partition_size = 100):
+# OLD MEMONRY INTENSIVE
+# def calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10, partition_size = 100):
+#     """
+#     Calculate distances in parallel using the specified number of cores.
+
+#     Args:
+#     mixed_samples (np.ndarray): Input test data matrix of shape (n, d).
+#     reference_samples (np.ndarray): Input reference data matrix of shape (n, d).
+#     num_neighbors (int): Number of nearest neighbors to find.
+#     num_cores (int): Number of cores to use for parallel processing.
+
+#     Returns:
+#     np.ndarray: Distance matrix of shape (n, num_neighbors, 2).
+#     """
+#     num_samples = mixed_samples.shape[0]
+#     # partition_size = 100
+#     num_partitions = (num_samples + partition_size - 1) // partition_size
+
+#     sorted_Y = np.empty((num_samples, num_neighbors))
+#     sorted_Y1 = np.empty((num_samples, num_neighbors))
+    
+#     sorted_idx = np.empty((num_samples, num_neighbors), dtype=int)
+#     sorted_idx1 = np.empty((num_samples, num_neighbors), dtype=int)
+
+#     with ProcessPoolExecutor(max_workers=num_cores) as executor:
+#         futures = [
+#             executor.submit(process_partition, jj, mixed_samples, reference_samples, num_neighbors, partition_size)
+#             for jj in range(num_partitions)
+#         ]
+
+#         for future in as_completed(futures):
+#             start_idx, end_idx, sorted_Y_part, sorted_Y1_part, sorted_idx_part, sorted_idx1_part = future.result()
+#             sorted_Y[start_idx:end_idx, :] = sorted_Y_part
+#             sorted_Y1[start_idx:end_idx, :] = sorted_Y1_part
+#             sorted_idx[start_idx:end_idx, :] = sorted_idx_part
+#             sorted_idx1[start_idx:end_idx, :] = sorted_idx1_part
+#             print(f'Processing partition {start_idx // partition_size + 1}/{num_partitions}')
+    
+#     loc1 = np.concatenate((sorted_Y, sorted_Y1), axis=1)
+#     loc2 = np.concatenate((np.zeros(sorted_Y.shape), np.ones(sorted_Y1.shape)), axis=1)
+#     loc3 = np.concatenate((sorted_idx, sorted_idx1), axis=1)
+    
+#     del(sorted_Y)
+#     del(sorted_Y1)
+#     del(sorted_idx)
+#     del(sorted_idx1)
+
+#     D = np.empty((loc2.shape[0], loc2.shape[1], 3), dtype=np.float32)
+#     D[:, :, 0] = loc1
+#     D[:, :, 1] = loc2
+#     D[:, :, 2] = loc3
+
+#     return D
+
+
+
+def calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10, partition_size=100):
     """
-    Calculate distances in parallel using the specified number of cores.
+    Calculate distances in parallel using the specified number of cores in a memory-efficient way.
 
     Args:
     mixed_samples (np.ndarray): Input test data matrix of shape (n, d).
-    reference_samples (np.ndarray): Input reference data matrix of shape (n, d).
+    reference_samples (np.ndarray): Input reference data matrix of shape (m, d).
     num_neighbors (int): Number of nearest neighbors to find.
     num_cores (int): Number of cores to use for parallel processing.
 
     Returns:
-    np.ndarray: Distance matrix of shape (n, num_neighbors, 2).
+    np.ndarray: Distance matrix of shape (n, num_neighbors * 2, 3).
     """
     num_samples = mixed_samples.shape[0]
-    # partition_size = 100
     num_partitions = (num_samples + partition_size - 1) // partition_size
 
-    sorted_Y = np.empty((num_samples, num_neighbors))
-    sorted_Y1 = np.empty((num_samples, num_neighbors))
-    
-    sorted_idx = np.empty((num_samples, num_neighbors), dtype=int)
-    sorted_idx1 = np.empty((num_samples, num_neighbors), dtype=int)
+    # Initialize an empty array for the final results
+    D = np.empty((num_samples, num_neighbors * 2, 3), dtype=np.float32)
+
+    def process_and_store(future):
+        start_idx, end_idx, sorted_Y_part, sorted_Y1_part, sorted_idx_part, sorted_idx1_part = future.result()
+        # Concatenate results for this partition
+        loc1 = np.concatenate((sorted_Y_part, sorted_Y1_part), axis=1)
+        loc2 = np.concatenate((np.zeros(sorted_Y_part.shape), np.ones(sorted_Y1_part.shape)), axis=1)
+        loc3 = np.concatenate((sorted_idx_part, sorted_idx1_part), axis=1)
+        # Store directly into D to save memory
+        D[start_idx:end_idx, :, 0] = loc1
+        D[start_idx:end_idx, :, 1] = loc2
+        D[start_idx:end_idx, :, 2] = loc3
+        print(f'Processing partition {start_idx // partition_size + 1}/{num_partitions}')
 
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
         futures = [
@@ -217,23 +285,11 @@ def calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors
         ]
 
         for future in as_completed(futures):
-            start_idx, end_idx, sorted_Y_part, sorted_Y1_part, sorted_idx_part, sorted_idx1_part = future.result()
-            sorted_Y[start_idx:end_idx, :] = sorted_Y_part
-            sorted_Y1[start_idx:end_idx, :] = sorted_Y1_part
-            sorted_idx[start_idx:end_idx, :] = sorted_idx_part
-            sorted_idx1[start_idx:end_idx, :] = sorted_idx1_part
-            print(f'Processing partition {start_idx // partition_size + 1}/{num_partitions}')
-    
-    loc1 = np.concatenate((sorted_Y, sorted_Y1), axis=1)
-    loc2 = np.concatenate((np.zeros(sorted_Y.shape), np.ones(sorted_Y1.shape)), axis=1)
-    loc3 = np.concatenate((sorted_idx, sorted_idx1), axis=1)
-    
-    D = np.zeros((loc2.shape[0], loc2.shape[1], 3))
-    D[:, :, 0] = loc1
-    D[:, :, 1] = loc2
-    D[:, :, 2] = loc3
+            process_and_store(future)
 
     return D
+
+
 
 
 def process_distances(D, num_neighbors=1000, time_series=0):
