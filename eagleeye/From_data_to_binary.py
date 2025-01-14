@@ -58,6 +58,29 @@ from scipy.spatial.distance import cdist
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from IPython.display import display
 
+def create_binary_array_cdist_post(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10,validation=None,partition_size=100):
+    """
+    Create a binary array indicating if the nearest neighbor is from the first half or second half of the dataset.
+
+    Args:
+    mixed_samples (np.ndarray): Input test data matrix of shape (n, d).
+    reference_samples (np.ndarray): Input reference data matrix of shape (n, d).
+    num_neighbors (int): Number of nearest neighbors to find.
+    validation (np.ndarray or int): Indicies of validation set, or size of validation set you want to use. If int, will take first n samples of reference as validation set.
+    partition_size (int): Size of the partition to be processed in parallel.
+
+    Returns:
+    np.ndarray: Binary array of shape (n, num_neighbors).
+    """
+
+
+    D_parallel                                         = calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors, num_cores,partition_size=partition_size)
+    binary_array_cdist_parallel, neighbourhood_indexes = process_distances(D_parallel, num_neighbors)
+    neighbourhood_indexes = neighbourhood_indexes[:,:binary_array_cdist_parallel.shape[1]]
+
+
+    return binary_array_cdist_parallel, neighbourhood_indexes
+
 
 def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=1000, num_cores=10,validation=None,partition_size=100):
     """
@@ -169,6 +192,8 @@ def create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors=10
     return binary_array_cdist_parallel
 
 
+
+
 def compute_sorted_distances(samples1, samples2, num_neighbors):
     # Calculate the pairwise Euclidean distances
     distances = cdist(samples1, samples2, 'euclidean')
@@ -276,7 +301,7 @@ def calculate_distances_parallel(mixed_samples, reference_samples, num_neighbors
         D[start_idx:end_idx, :, 0] = loc1
         D[start_idx:end_idx, :, 1] = loc2
         D[start_idx:end_idx, :, 2] = loc3
-        print(f'Processing partition {start_idx // partition_size + 1}/{num_partitions}')
+        #print(f'Processing partition {start_idx // partition_size + 1}/{num_partitions}')
 
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
         futures = [
