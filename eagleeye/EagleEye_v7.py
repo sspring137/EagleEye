@@ -20,6 +20,8 @@ from collections import defaultdict
 # module_path = '../../eagleeye'
 # sys.path.append(module_path)
 # import From_data_to_binary_post  # e.g., if used
+import From_data_to_binary
+
 
 sns.set(style="darkgrid")
 plt.rcParams.update({
@@ -48,7 +50,8 @@ class PValueCalculator:
                  binary_sequence, 
                  kstar_range, 
                  p=0.5, 
-                 pvals_dict=None):
+                 pvals_dict=None,
+                 verbose=False):
         """
         Parameters
         ----------
@@ -67,6 +70,7 @@ class PValueCalculator:
         self.binary_sequence = binary_sequence
         self.kstar_range = list(kstar_range)
         self.p = p
+        self.verbose = verbose
 
         # 1) Cumulative sums for fast row-sums of first k bits
         self.binary_cumsum = np.c_[
@@ -84,7 +88,8 @@ class PValueCalculator:
         self.pval_array_dict = {}
         for kstar in self.kstar_range:
             self.pval_array_dict[kstar] = self.compute_neglog_array(kstar)
-
+            if self.verbose:
+                print(f"Computed p-values for k={kstar}")
         # 4) Compute row-wise maxima across kstar_range
         self.compute_rowwise_maxima()
 
@@ -195,7 +200,7 @@ def binom_pmf_range(k, p):
 # 3) calculate_p_values function
 # ----------------------------------------------------------------------
 
-def calculate_p_values(binary_sequence, kstar_range, validation=None):
+def calculate_p_values(binary_sequence, kstar_range, validation=None,verbose=False):
     """
     Computes the -log p-values (minus and plus) for each row in binary_sequence
     over the given kstar_range. Returns a dictionary of summary statistics.
@@ -203,7 +208,7 @@ def calculate_p_values(binary_sequence, kstar_range, validation=None):
     If 'validation' is not None (int or list of indices), the final arrays
     are split into training and validation subsets.
     """
-    p_val_info = PValueCalculator(binary_sequence, kstar_range, p=0.5, pvals_dict=None)
+    p_val_info = PValueCalculator(binary_sequence, kstar_range, p=0.5, pvals_dict=None,verbose=verbose)
 
     Upsilon_i_minus = p_val_info.min_pval_minus
     Upsilon_i_plus  = p_val_info.min_pval_plus
@@ -397,7 +402,7 @@ def iterative_equalization(
         dataset_T,
         dataset_R,
         subset_indices,
-        num_neighbors=K_M * 5,
+        num_neighbors=K_M * 4,
         num_cores=NUMBER_CORES,
         validation=None,
         partition_size=PARTITION_SIZE
@@ -512,3 +517,119 @@ def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus,
     REGION_OVER = list(set1_over.intersection(set2_over))
    
     return REGION_UNDER, REGION_OVER
+
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+def Soar(reference_data, test_data, result_dict={}, K_M=1000, critical_quantile=1-1e-5, post_process=True, num_cores=1, validation=None, partition_size=100,smoothing=3):
+    print("Soar!")
+    if not result_dict:
+        result_dict = {}
+        #%% Get the thresholds from the null model of binomial trials
+        VALIDATION                                     = None        # Number of samples to use for validation 
+        KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
+        NUMBER_CORES                                   = num_cores  
+        PARTITION_SIZE                                 = partition_size
+        num_sequences                                  = 200000
+        p                                              = len(test_data) / (len(test_data) + len(reference_data))
+        binary_sequences                               = np.random.binomial(n=1, p=p, size=(num_sequences, K_M))
+        stats_null                                     = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation)
+
+        Upsilon_i_plus_null  = stats_null['Upsilon_i_plus']
+        Upsilon_i_minus_null = stats_null['Upsilon_i_minus']
+
+        # Critical thresholds as defined in the article
+        Upsilon_star_plus  = np.quantile(Upsilon_i_plus_null,  critical_quantile)
+        Upsilon_star_minus = np.quantile(Upsilon_i_minus_null, critical_quantile)
+
+        #%% Compute overdensities & inject validation
+        print("Compute overdensities")
+        binary_sequences                               = From_data_to_binary.create_binary_array_cdist(test_data, reference_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
+        stats                                          = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
+
+        #%% compute underdensities & IV
+        print("Compute underdensities")
+        binary_sequences_reverse                       = From_data_to_binary.create_binary_array_cdist(reference_data, test_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
+        stats_reverse                                  = calculate_p_values(binary_sequences_reverse, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
+
+        result_dict['critical_quantile']  = critical_quantile
+        result_dict['stats']              = stats
+        result_dict['stats_reverse']      = stats_reverse
+        result_dict['Upsilon_star_plus']  = Upsilon_star_plus
+        result_dict['Upsilon_star_minus'] = Upsilon_star_minus
+        result_dict['Upsilon_i_plus_null']= Upsilon_i_plus_null
+        result_dict['Upsilon_i_minus_null']= Upsilon_i_minus_null
+    
+    #%% equalize the overdensities
+    if critical_quantile != result_dict['critical_quantile']:
+        print("Critical quantile has changed, recompute the thresholds")
+        result_dict['critical_quantile'] = critical_quantile
+        # Critical thresholds as defined in the article
+        result_dict['Upsilon_star_plus']  = np.quantile(result_dict['Upsilon_i_plus_null'],  critical_quantile)
+        result_dict['Upsilon_star_minus'] = np.quantile(result_dict['Upsilon_i_minus_null'], critical_quantile)
+        
+    print("Iterative equalization")
+    unique_elements_overdensities                  = iterative_equalization(
+        test_data, 
+        reference_data, 
+        result_dict['stats']['Upsilon_i_plus'], 
+        result_dict['Upsilon_star_plus'],
+        K_M,
+        NUMBER_CORES,
+        PARTITION_SIZE
+    )
+
+    #%% equalize the underdensities
+    unique_elements_underdensities = iterative_equalization(
+        reference_data, 
+        test_data, 
+        result_dict['stats_reverse']['Upsilon_i_plus'], 
+        result_dict['Upsilon_star_plus'],
+        K_M,
+        NUMBER_CORES,
+        PARTITION_SIZE
+    )
+
+    #%% get back
+    REGION_UNDER, REGION_OVER = compute_anomalous_region(reference_data,
+                                                                    test_data,
+                                                                    result_dict['stats']['Upsilon_i_minus'],
+                                                                    result_dict['Upsilon_star_minus'],
+                                                                    result_dict['stats']['Upsilon_i_plus'],
+                                                                    result_dict['Upsilon_star_plus'],
+                                                                    unique_elements_overdensities,
+                                                                    unique_elements_underdensities,
+                                                                    smoothing,
+                                                                    NUMBER_CORES,
+                                                                    PARTITION_SIZE)
+
+    result_dict['REGION_UNDER'] = REGION_UNDER
+    result_dict['REGION_OVER'] = REGION_OVER
+    result_dict['unique_elements_overdensities'] = unique_elements_overdensities
+    result_dict['unique_elements_underdensities'] = unique_elements_underdensities
+
+    # Print shapes of all keys of result_dict in a nice table
+    print("\nShapes of result_dict keys:")
+    print("{:<30} {:<15}".format("Key", "Shape"))
+    print("-" * 45)
+    for key, value in result_dict.items():
+        if isinstance(value, np.ndarray):
+            shape = value.shape
+        elif isinstance(value, list):
+            shape = (len(value),)
+        elif isinstance(value, dict):
+            print("{:<30} {:<15}".format(key, "dict"))
+            for sub_key, sub_value in value.items():
+                if isinstance(sub_value, np.ndarray):
+                    sub_shape = sub_value.shape
+                elif isinstance(sub_value, list):
+                    sub_shape = (len(sub_value),)
+                else:
+                    sub_shape = "N/A"
+                print("  {:<28} {:<15}".format(sub_key, str(sub_shape)))
+            continue
+        else:
+            shape = "N/A"
+        print("{:<30} {:<15}".format(key, str(shape)))
+
+    return result_dict
