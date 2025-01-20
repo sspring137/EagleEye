@@ -655,7 +655,10 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         # Iterative equilisation (halo removal) 
         # Check if list of quantiles exists or can be reused
         thresh = min(critical_quantiles)
-        if not result_dict.get('overdensities'):
+
+
+
+        if not result_dict.get('overdensities') or thresh < min(result_dict['critical_quantiles']) :
             print("Computing unique elements for quantile/s.")
             result_dict['unique_elements_overdensities']                  = iterative_equalization(
             result_dict['unique_elements_overdensities'],
@@ -678,34 +681,8 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
                 num_cores,
                 partition_size
             )        
-
-        elif thresh < min(result_dict['critical_quantiles']):
-            print("New threshold quantile/s detected! Computing new unique elements.")
-            result_dict['unique_elements_overdensities'] = iterative_equalization(
-            result_dict['unique_elements_overdensities'],
-            test_data, 
-            reference_data, 
-            result_dict['stats']['Upsilon_i_plus'], 
-            thresh,
-            K_M,
-            num_cores,
-            partition_size
-        )
-            
-        #%% equalize the underdensities
-            result_dict['unique_elements_underdensities'] = iterative_equalization(
-                result_dict['unique_elements_underdensities'],
-                reference_data, 
-                test_data, 
-                result_dict['stats_reverse']['Upsilon_i_plus'], 
-                result_dict['Upsilon_star_plus'],
-                K_M,
-                num_cores,
-                partition_size
-            )
-
         else:
-            print("Else...")
+            print("Reusing unique elements for quantile/s.")
             
         # Save the useful disctionaries with all indices for anomolous regions for each quantile
         result_dict['overdensities']                  = {thresh:get_indicies(thresh,result_dict) for thresh in critical_quantiles}
