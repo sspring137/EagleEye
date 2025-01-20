@@ -357,6 +357,7 @@ def exclude_and_take_first_k(A: np.ndarray,
 # ----------------------------------------------------------------------
 
 def iterative_equalization(
+    unique_elements_dict,
     dataset_T, 
     dataset_R, 
     Upsilon_i_T_wrt_R, 
@@ -377,8 +378,8 @@ def iterative_equalization(
     Upsilon_i_T_wrt_R : np.ndarray
         Array of row-wise -log p-values (or similar measure of anomaly) 
         for dataset_T with respect to dataset_R.
-    Upsilon_star_plus : float
-        Threshold above which a row is considered an overdensity.
+    Upsilon_star_plus : float, np.ndarray
+        Threshold/s above which a row is considered an overdensity.
     K_M : int
         Number of neighbors used in building the binary sequences.
     NUMBER_CORES : int
@@ -397,93 +398,123 @@ def iterative_equalization(
 
     # Create a (larger) binary array to have more room for iteration
     # (Requires your custom function from From_data_to_binary_post)
-    import From_data_to_binary_post
-    binary_sequences_pp, neighborhood_idx_pp = From_data_to_binary_post.create_binary_array_cdist_post_subset(
-        dataset_T,
-        dataset_R,
-        subset_indices,
-        num_neighbors=K_M * 4,
-        num_cores=NUMBER_CORES,
-        validation=None,
-        partition_size=PARTITION_SIZE
-    )
+    # Check if the smallest value of Upsilon_star_plus is less than the smallest key in unique_elements_dict
 
-    # label anomalies
-    label_anomalies = (Upsilon_i_T_wrt_R > Upsilon_star_plus).astype(int)
-    list_temp = np.where(label_anomalies)[0]
-    Upsilon_i_temp = Upsilon_i_T_wrt_R[list_temp].copy()
 
-    # Find the row(s) with highest Upsilon
-    index_max = np.where(Upsilon_i_temp == Upsilon_i_temp.max())[0]
+    if len(unique_elements_dict.keys()) == 0: 
+        min_UE = 99999
+    else:
+        min_UE = min(unique_elements_dict.keys())
 
-    # Shift indexes so that if a row is '0' in the binary array, 
-    # we map it to an actual row in dataset_T vs. a row in dataset_R, etc.
-    bin_seq_pp = binary_sequences_pp.astype(int).copy()
-    neigh_idx_pp = neighborhood_idx_pp.astype(int).copy()
-    neigh_idx_pp[bin_seq_pp == 0] += dataset_T.shape[0]
+    if Upsilon_star_plus < min_UE:
+        print("The smallest value of Upsilon_star_plus is less than the smallest key in unique_elements_dict.")
 
-    # For the row(s) with the highest Upsilon, collect neighbors 
-    Neig_indexes_temp = neigh_idx_pp[index_max, :K_M].astype(int)
-    unique_elements = collect_unique_until_greater(Neig_indexes_temp, dataset_T.shape[0])
+        already_computed_         = [item for item in unique_elements_dict.items()]
+        subset_indices            = [x for x in subset_indices if x not in already_computed_]
 
-    # Temporarily mark them as removed
-    Upsilon_i_T_wrt_R_temp = Upsilon_i_T_wrt_R.copy()
-    Upsilon_i_T_wrt_R_temp[unique_elements] = -1
-    Upsilon_i_temp = Upsilon_i_T_wrt_R_temp[list_temp].copy()
-
-    # Iterative procedure until no row in Upsilon_i_temp remains above threshold
-    while Upsilon_i_temp.max() > Upsilon_star_plus:
-        # Exclude those already identified
-        indices_updated = [
-            i for i, row in enumerate(neigh_idx_pp) if row[0] not in unique_elements
-        ]
-
-        # Exclude elements from unique_elements and keep first K_M neighbors
-        NEW_neigh = exclude_and_take_first_k(
-            neigh_idx_pp[indices_updated, :], unique_elements, K_M, -1
+        import From_data_to_binary_post
+        binary_sequences_pp, neighborhood_idx_pp = From_data_to_binary_post.create_binary_array_cdist_post_subset(
+            dataset_T,
+            dataset_R,
+            subset_indices,
+            num_neighbors=K_M * 4,
+            num_cores=NUMBER_CORES,
+            validation=None,
+            partition_size=PARTITION_SIZE
         )
-        NEW_binary_sequence = (NEW_neigh < dataset_T.shape[0]).astype(int)
 
-        # Recompute the p-values for these updated neighbor sets
-        KSTAR_RANGE = range(20, K_M)
-        stats_local = calculate_p_values(NEW_binary_sequence, kstar_range=KSTAR_RANGE)
+        # label anomalies
+        label_anomalies = (Upsilon_i_T_wrt_R > Upsilon_star_plus).astype(int)
+        list_temp = np.where(label_anomalies)[0]
+        Upsilon_i_temp = Upsilon_i_T_wrt_R[list_temp].copy()
 
-        # Update only for the sub-list
-        Upsilon_i_temp[indices_updated] = stats_local['Upsilon_i_plus']
+        # Find the row(s) with highest Upsilon
+        index_max = np.where(Upsilon_i_temp == Upsilon_i_temp.max())[0]
 
-        if Upsilon_i_temp.max() < Upsilon_star_plus:
-            break
-        else:
-            index_max = np.where(Upsilon_i_temp == Upsilon_i_temp.max())[0]
-            Neig_indexes_temp = neigh_idx_pp[index_max].astype(int)
 
-            unique_elements_temp = collect_unique_until_greater(
-                Neig_indexes_temp, dataset_T.shape[0]
+
+        # Shift indexes so that if a row is '0' in the binary array, 
+        # we map it to an actual row in dataset_T vs. a row in dataset_R, etc.
+        bin_seq_pp = binary_sequences_pp.astype(int).copy()
+        neigh_idx_pp = neighborhood_idx_pp.astype(int).copy()
+        neigh_idx_pp[bin_seq_pp == 0] += dataset_T.shape[0]
+
+        # For the row(s) with the highest Upsilon, collect neighbors 
+        Neig_indexes_temp = neigh_idx_pp[index_max, :K_M].astype(int)
+        unique_elements   = collect_unique_until_greater(Neig_indexes_temp, dataset_T.shape[0])
+
+        # Temporarily mark them as removed
+        Upsilon_i_T_wrt_R_temp                  = Upsilon_i_T_wrt_R.copy()
+        Upsilon_i_T_wrt_R_temp[unique_elements] = -1
+        Upsilon_i_temp                          = Upsilon_i_T_wrt_R_temp[list_temp].copy()
+        results_container                       = {}
+        unique_elements_temp_dict               = {}
+
+        while Upsilon_i_temp.max() >= Upsilon_star_plus: 
+            key_thresh = Upsilon_i_temp.max()
+            indices_updated = [
+                i for i, row in enumerate(neigh_idx_pp) if row[0] not in unique_elements
+            ]
+
+            # Exclude elements from unique_elements and keep first K_M neighbors
+            NEW_neigh = exclude_and_take_first_k(
+                neigh_idx_pp[indices_updated, :], unique_elements, K_M, -1
             )
-            if len(unique_elements_temp) == 0:
-                # Fallback: if no neighbors are found, pick the single row 
-                # with the highest Upsilon
-                unique_elements_temp = [Neig_indexes_temp[0][0]]
-                unique_elements = list(set(unique_elements) | set(unique_elements_temp))
+            NEW_binary_sequence = (NEW_neigh < dataset_T.shape[0]).astype(int)
 
-                # Mark them as removed
-                to_remove_idx = [
-                    i for i, row in enumerate(neigh_idx_pp)
-                    if row[0] in [Neig_indexes_temp[0][0]]
-                ]
-                Upsilon_i_temp[to_remove_idx] = -1
-                Upsilon_i_temp[
-                    [i for i, row in enumerate(neigh_idx_pp) if row[0] in unique_elements]
-                ] = -1
+            # Recompute the p-values for these updated neighbor sets
+            KSTAR_RANGE = range(20, K_M)
+            stats_local = calculate_p_values(NEW_binary_sequence, kstar_range=KSTAR_RANGE)
+
+            # Update only for the sub-list
+            Upsilon_i_temp[indices_updated] = stats_local['Upsilon_i_plus']
+
+            if Upsilon_i_temp.max() < Upsilon_star_plus:
+                break
+            
             else:
-                unique_elements = list(set(unique_elements) | set(unique_elements_temp))
-                Upsilon_i_temp[
-                    [i for i, row in enumerate(neigh_idx_pp) if row[0] in unique_elements]
-                ] = -1
+                index_max = np.where(Upsilon_i_temp == Upsilon_i_temp.max())[0]
+                Neig_indexes_temp = neigh_idx_pp[index_max].astype(int)
 
-        print(f"Max Upsilon remained: {Upsilon_i_temp.max()}")
+                unique_elements_temp = collect_unique_until_greater(
+                    Neig_indexes_temp, dataset_T.shape[0]
+                )
+                if len(unique_elements_temp) == 0:
+                    # Fallback: if no neighbors are found, pick the single row 
+                    # with the highest Upsilon
+                    unique_elements_temp = [Neig_indexes_temp[0][0]]
+                    unique_elements = list(set(unique_elements) | set(unique_elements_temp))
 
-    return unique_elements
+                    # Mark them as removed
+                    to_remove_idx = [
+                        i for i, row in enumerate(neigh_idx_pp)
+                        if row[0] in [Neig_indexes_temp[0][0]]
+                    ]
+                    Upsilon_i_temp[to_remove_idx] = -1
+                    Upsilon_i_temp[
+                        [i for i, row in enumerate(neigh_idx_pp) if row[0] in unique_elements]
+                    ] = -1
+                else:
+                    unique_elements = list(set(unique_elements) | set(unique_elements_temp))
+                    Upsilon_i_temp[
+                        [i for i, row in enumerate(neigh_idx_pp) if row[0] in unique_elements]
+                    ] = -1
+
+            print(f"Max Upsilon remained: {Upsilon_i_temp.max()}")
+
+            unique_elements_temp_dict[key_thresh] = unique_elements_temp
+
+        return unique_elements_temp_dict
+
+
+    else:
+        print("Warning! The smallest value of Upsilon_star_plus is greater than or equal to the smallest key in unique_elements_dict!")
+        return unique_elements_dict
+
+
+
+
+
 
 def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus, Upsilon_star_minus, Upsilon_i_plus, Upsilon_star_plus,EXCESS_OVER, EXCESS_UNDER, smoothing,NUMBER_CORES, PARTITION_SIZE):
     import From_data_to_binary
@@ -500,7 +531,7 @@ def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus,
     mask_over  = np.isin(NN_smoothing[:, 1:], EXCESS_OVER)
     
     rows_with_match_under = np.any(mask_under, axis=1)
-    rows_with_match_over = np.any(mask_over, axis=1)
+    rows_with_match_over  = np.any(mask_over, axis=1)
     
     # Convert lists to sets
     set1_under = set(np.where(rows_with_match_under)[0])
@@ -521,92 +552,187 @@ def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus,
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-def Soar(reference_data, test_data, result_dict={}, K_M=1000, critical_quantile=1-1e-5, post_process=True, num_cores=1, validation=None, partition_size=100,smoothing=3):
-    print("Soar!")
-    if not result_dict:
-        result_dict = {}
-        #%% Get the thresholds from the null model of binomial trials
-        VALIDATION                                     = None        # Number of samples to use for validation 
+def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quantiles=None, num_cores=1, validation=None, partition_size=100,smoothing=3):
+    print("Eagle...Soar!")
+    print(r"""
+                               /T /I
+                              / |/ | .-~/
+                          T\ Y  I  |/  /  _
+         /T               | \I  |  I  Y.-~/
+        I l   /I       T\ |  |  l  |  T  /
+     T\ |  \ Y l  /T   | \I  l   \ `  l Y
+ __  | \l   \l  \I l __l  l   \   `  _. |
+ \ ~-l  `\   `\  \  \ ~\  \   `. .-~   |
+  \   ~-. "-.  `  \  ^._ ^. "-.  /  \   |
+.--~-._  ~-  `  _  ~-_.-"-." ._ /._ ." ./
+ &gt;--.  ~-.   ._  ~&gt;-"    "\   7   7   ]
+^.___~"--._    ~-{  .-~ .  `\ Y . /    |
+ &lt;__ ~"-.  ~       /_/   \   \I  Y   : |
+   ^-.__           ~(_/   \   &gt;._:   | l______
+       ^--.,___.-~"  /_/   !  `-.~"--l_ /     ~"-.
+              (_/ .  ~(   /'     "~"--,Y   -=b-. _)
+               (_/ .  \  :           / l      c"~o \
+                \ /    `.    .     .^   \_.-~"~--.  )
+                 (_/ .   `  /     /       !       )/
+                  / / _.   '.   .':      /        '
+                  ~(_/ .   /    _  `  .-&lt;_
+                    /_/ . ' .-~" `.  / \  \          ,z=.
+                    ~( /   '  :   | K   "-.~-.______//
+                      "-,.    l   I/ \_    __{---&gt;._(==.
+                       //(     \  &lt;    ~"~"     //
+                      /' /\     \  \     ,v=.  ((
+                    .^. / /\     "  }__ //===-  `
+                   / / ' '  "-.,__ {---(==-
+                 .^ '       :  T  ~"   ll      
+                / .  .  . : | :!        \
+               (_/  /   | | j-"          ~^
+                 ~-&lt;_(_.^-~"
+""", end='')
+    
+    result_dict = result_dict_in.copy()
+    # Determin lists of upsilon stars for thresholds
+    if critical_quantiles is not None:
+        print("Critical quantiles detected. Computing null distribution!")
         KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
-        NUMBER_CORES                                   = num_cores  
-        PARTITION_SIZE                                 = partition_size
-        num_sequences                                  = 200000
+        num_sequences                                  = 500000 # Hardcoded for good stats
         p                                              = len(test_data) / (len(test_data) + len(reference_data))
         binary_sequences                               = np.random.binomial(n=1, p=p, size=(num_sequences, K_M))
         stats_null                                     = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation)
-
+        del(binary_sequences)
         Upsilon_i_plus_null  = stats_null['Upsilon_i_plus']
         Upsilon_i_minus_null = stats_null['Upsilon_i_minus']
 
         # Critical thresholds as defined in the article
-        Upsilon_star_plus  = np.quantile(Upsilon_i_plus_null,  critical_quantile)
-        Upsilon_star_minus = np.quantile(Upsilon_i_minus_null, critical_quantile)
+        Upsilon_star_plus  = np.quantile(Upsilon_i_plus_null,  critical_quantiles)
+        Upsilon_star_minus = np.quantile(Upsilon_i_minus_null, critical_quantiles)
+        result_dict['Upsilon_star_plus']   = Upsilon_star_plus
+        result_dict['Upsilon_star_minus']  = Upsilon_star_minus
+        result_dict['critical_quantiles']  = critical_quantiles
+        result_dict['Upsilon_i_plus_null'] = Upsilon_i_plus_null
+        result_dict['Upsilon_i_minus_null']= Upsilon_i_minus_null
+    else:
+        result_dict['Upsilon_star_plus']   = None
+        result_dict['Upsilon_star_minus']  = None
+        result_dict['critical_quantiles']  = None
+        result_dict['Upsilon_i_plus_null'] = None
+        result_dict['Upsilon_i_minus_null']= None
 
+
+    if not result_dict.get('stats') or not result_dict.get('stats_reverse'):
+        # Initialise res dict if EE not been run before. 
+        # I.e obtain Upsilon+ and Upsilon- lists 
+        KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
+        NUMBER_CORES                                   = num_cores  
+        PARTITION_SIZE                                 = partition_size
         #%% Compute overdensities & inject validation
         print("Compute overdensities")
         binary_sequences                               = From_data_to_binary.create_binary_array_cdist(test_data, reference_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
         stats                                          = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
-
+        del(binary_sequences)
         #%% compute underdensities & IV
         print("Compute underdensities")
         binary_sequences_reverse                       = From_data_to_binary.create_binary_array_cdist(reference_data, test_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
         stats_reverse                                  = calculate_p_values(binary_sequences_reverse, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
+        del(binary_sequences_reverse)
+        result_dict['stats']                          = stats
+        result_dict['stats_reverse']                  = stats_reverse
+        result_dict['unique_elements_overdensities']  = {}
+        result_dict['unique_elements_underdensities'] = {}
+        result_dict['overdensities']                  = {}
+        result_dict['underdensities']                 = {}
 
-        result_dict['critical_quantile']  = critical_quantile
-        result_dict['stats']              = stats
-        result_dict['stats_reverse']      = stats_reverse
-        result_dict['Upsilon_star_plus']  = Upsilon_star_plus
-        result_dict['Upsilon_star_minus'] = Upsilon_star_minus
-        result_dict['Upsilon_i_plus_null']= Upsilon_i_plus_null
-        result_dict['Upsilon_i_minus_null']= Upsilon_i_minus_null
-    
-    #%% equalize the overdensities
-    if critical_quantile != result_dict['critical_quantile']:
-        print("Critical quantile has changed, recompute the thresholds")
-        result_dict['critical_quantile'] = critical_quantile
-        # Critical thresholds as defined in the article
-        result_dict['Upsilon_star_plus']  = np.quantile(result_dict['Upsilon_i_plus_null'],  critical_quantile)
-        result_dict['Upsilon_star_minus'] = np.quantile(result_dict['Upsilon_i_minus_null'], critical_quantile)
-        
-    print("Iterative equalization")
-    unique_elements_overdensities                  = iterative_equalization(
-        test_data, 
-        reference_data, 
-        result_dict['stats']['Upsilon_i_plus'], 
-        result_dict['Upsilon_star_plus'],
-        K_M,
-        NUMBER_CORES,
-        PARTITION_SIZE
-    )
 
-    #%% equalize the underdensities
-    unique_elements_underdensities = iterative_equalization(
-        reference_data, 
-        test_data, 
-        result_dict['stats_reverse']['Upsilon_i_plus'], 
-        result_dict['Upsilon_star_plus'],
-        K_M,
-        NUMBER_CORES,
-        PARTITION_SIZE
-    )
+    def get_indicies(thresh,res_new):
+        if thresh > max(res_new['unique_elements_overdensities'].keys()):
+            return thresh, []
+        keys = np.array(list(res_new['unique_elements_overdensities'].keys()))
+        keys_new = [key for key in keys if key >= thresh]
+        # concatenate all the ites for elements of the dict with keys_new
+        inds = np.concatenate([res_new['unique_elements_overdensities'][key] for key in keys_new])
+        return thresh, inds
 
-    #%% get back
-    REGION_UNDER, REGION_OVER = compute_anomalous_region(reference_data,
-                                                                    test_data,
-                                                                    result_dict['stats']['Upsilon_i_minus'],
-                                                                    result_dict['Upsilon_star_minus'],
-                                                                    result_dict['stats']['Upsilon_i_plus'],
-                                                                    result_dict['Upsilon_star_plus'],
-                                                                    unique_elements_overdensities,
-                                                                    unique_elements_underdensities,
-                                                                    smoothing,
-                                                                    NUMBER_CORES,
-                                                                    PARTITION_SIZE)
+    if critical_quantiles:
+        # Iterative equilisation (halo removal) 
+        # Check if list of quantiles exists or can be reused
+        thresh = min(critical_quantiles)
+        if not result_dict.get('overdensities'):
+            print("Computing unique elements for quantile/s.")
+            result_dict['unique_elements_overdensities']                  = iterative_equalization(
+            result_dict['unique_elements_overdensities'],
+            test_data, 
+            reference_data, 
+            result_dict['stats']['Upsilon_i_plus'], 
+            thresh,
+            K_M,
+            num_cores,
+            partition_size
+        )
+        #%% equalize the underdensities
+            result_dict['unique_elements_underdensities'] = iterative_equalization(
+                result_dict['unique_elements_underdensities'],
+                reference_data, 
+                test_data, 
+                result_dict['stats_reverse']['Upsilon_i_plus'], 
+                result_dict['Upsilon_star_plus'],
+                K_M,
+                num_cores,
+                partition_size
+            )        
 
-    result_dict['REGION_UNDER'] = REGION_UNDER
-    result_dict['REGION_OVER'] = REGION_OVER
-    result_dict['unique_elements_overdensities'] = unique_elements_overdensities
-    result_dict['unique_elements_underdensities'] = unique_elements_underdensities
+        elif thresh < min(result_dict['critical_quantiles']):
+            print("New threshold quantile/s detected! Computing new unique elements.")
+            result_dict['unique_elements_overdensities'] = iterative_equalization(
+            result_dict['unique_elements_overdensities'],
+            test_data, 
+            reference_data, 
+            result_dict['stats']['Upsilon_i_plus'], 
+            thresh,
+            K_M,
+            num_cores,
+            partition_size
+        )
+            
+        #%% equalize the underdensities
+            result_dict['unique_elements_underdensities'] = iterative_equalization(
+                result_dict['unique_elements_underdensities'],
+                reference_data, 
+                test_data, 
+                result_dict['stats_reverse']['Upsilon_i_plus'], 
+                result_dict['Upsilon_star_plus'],
+                K_M,
+                num_cores,
+                partition_size
+            )
+
+        else:
+            print("Else...")
+            
+        # Save the useful disctionaries with all indices for anomolous regions for each quantile
+        result_dict['overdensities']                  = {thresh:get_indicies(thresh,result_dict) for thresh in critical_quantiles}
+        result_dict['underdensities']                 = {thresh:get_indicies(thresh,result_dict) for thresh in critical_quantiles}            
+
+
+
+
+
+    # #%% get back
+    # REGION_UNDER, REGION_OVER = compute_anomalous_region(reference_data,
+    #                                                                 test_data,
+    #                                                                 result_dict['stats']['Upsilon_i_minus'],
+    #                                                                 result_dict['Upsilon_star_minus'],
+    #                                                                 result_dict['stats']['Upsilon_i_plus'],
+    #                                                                 result_dict['Upsilon_star_plus'],
+    #                                                                 unique_elements_overdensities,
+    #                                                                 unique_elements_underdensities,
+    #                                                                 smoothing,
+    #                                                                 NUMBER_CORES,
+    #                                                                 PARTITION_SIZE)
+
+    # result_dict['REGION_UNDER'] = REGION_UNDER
+    # result_dict['REGION_OVER'] = REGION_OVER
+
+
+
 
     # Print shapes of all keys of result_dict in a nice table
     print("\nShapes of result_dict keys:")
