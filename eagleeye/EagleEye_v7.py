@@ -15,6 +15,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from dadapy import Data
 
 # If you have custom modules, adjust sys.path or imports as needed:
 # module_path = '../../eagleeye'
@@ -450,6 +451,7 @@ def iterative_equalization(
         results_container                       = {}
         unique_elements_temp_dict               = {}
 
+
         while Upsilon_i_temp.max() >= Upsilon_star_plus: 
             key_thresh = Upsilon_i_temp.max()
             indices_updated = [
@@ -550,6 +552,15 @@ def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus,
     return REGION_UNDER, REGION_OVER
 
 
+def get_indicies(thresh,res_new):
+    if thresh > max(res_new.keys()):
+        return thresh, []
+    keys = np.array(list(res_new.keys()))
+    keys_new = [key for key in keys if key >= thresh]
+    # concatenate all the ites for elements of the dict with keys_new
+    inds = np.concatenate([res_new[key] for key in keys_new])
+    return inds
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quantiles=None, num_cores=1, validation=None, partition_size=100,smoothing=3):
@@ -642,22 +653,13 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         result_dict['underdensities']                 = {}
 
 
-    def get_indicies(thresh,res_new):
-        if thresh > max(res_new['unique_elements_overdensities'].keys()):
-            return thresh, []
-        keys = np.array(list(res_new['unique_elements_overdensities'].keys()))
-        keys_new = [key for key in keys if key >= thresh]
-        # concatenate all the ites for elements of the dict with keys_new
-        inds = np.concatenate([res_new['unique_elements_overdensities'][key] for key in keys_new])
-        return thresh, inds
+
 
     if critical_quantiles:
         # Iterative equilisation (halo removal) 
         # Check if list of quantiles exists or can be reused
-        thresh = min(critical_quantiles)
-
-
-
+        threshP = min(Upsilon_star_plus)
+        thresM  = min(Upsilon_star_minus)
         if not result_dict.get('overdensities') or thresh < min(result_dict['critical_quantiles']) :
             print("Computing unique elements for quantile/s.")
             result_dict['unique_elements_overdensities']                  = iterative_equalization(
@@ -665,7 +667,7 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
             test_data, 
             reference_data, 
             result_dict['stats']['Upsilon_i_plus'], 
-            thresh,
+            threshP,
             K_M,
             num_cores,
             partition_size
@@ -676,7 +678,7 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
                 reference_data, 
                 test_data, 
                 result_dict['stats_reverse']['Upsilon_i_plus'], 
-                result_dict['Upsilon_star_plus'],
+                thresM,
                 K_M,
                 num_cores,
                 partition_size
@@ -685,11 +687,8 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
             print("Reusing unique elements for quantile/s.")
             
         # Save the useful disctionaries with all indices for anomolous regions for each quantile
-        result_dict['overdensities']                  = {thresh:get_indicies(thresh,result_dict) for thresh in critical_quantiles}
-        result_dict['underdensities']                 = {thresh:get_indicies(thresh,result_dict) for thresh in critical_quantiles}            
-
-
-
+        result_dict['overdensities']                  = {thresh:get_indicies(thresh,result_dict['unique_elements_overdensities']) for thresh in critical_quantiles}
+        result_dict['underdensities']                 = {thresh:get_indicies(thresh,result_dict['unique_elements_underdensities']) for thresh in critical_quantiles}            
 
 
     # #%% get back
@@ -736,3 +735,66 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         print("{:<30} {:<15}".format(key, str(shape)))
 
     return result_dict
+
+
+
+
+
+############################################################################################################
+# Partitianing and BPR estimation after iterative equalisation 
+
+def cluster(data,K_M,Z=2.2):
+    # Adjust maxk based on the number of samples
+    data.compute_distances(maxk=K_M)
+    data.compute_id_2NN()
+    data.compute_density_kstarNN()
+    data.compute_clustering_ADP(Z=Z, halo=False)
+    return data 
+
+def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, Upsilon_star_minus,K_M,Z=2.2):
+    # For all points in the dataset, we will now partition them into groups with DPA clustering
+    Upsilon_i_plus  = result_dict['stats']['Upsilon_i_plus']
+    Upsilon_i_minus = result_dict['stats_reverse']['Upsilon_i_plus']
+    X_plus          = test_data[Upsilon_i_plus > Upsilon_star_plus]
+    X_minus         = reference_data[Upsilon_i_minus > Upsilon_star_minus]
+    data_plus       = Data(X_plus, verbose=True)
+    data_minus      = Data(X_minus, verbose=True)
+    data_plus       = cluster(data_plus,K_M,Z=Z)
+    data_minus      = cluster(data_minus,K_M,Z=Z)
+    data_plus.cluster_assignment 
+    indx_plus       = np.where(Upsilon_i_plus > Upsilon_star_plus)[0]
+    indx_minus      = np.where(Upsilon_i_minus > Upsilon_star_minus)[0]
+    clusters_plus   = [indx_plus[data_plus.cluster_assignment == i] for i in range(len(data_plus.cluster_centers))]
+    clusters_minus  = [indx_minus[data_minus.cluster_assignment == i] for i in range(len(data_minus.cluster_centers))]
+    return clusters_plus,clusters_minus
+
+def IV_IE(clusters,result_dict,thresh):
+    clusters_plus,clusters_minus = clusters
+    overdensity_indicies_plus = get_indicies(thresh,result_dict['unique_elements_overdensities'])
+    print(overdensity_indicies_plus)
+
+    overdensity_indicies_minus = get_indicies(thresh,result_dict['unique_elements_underdensities'])
+    IV_IE_list_plus = []
+    IV_IE_list_minus = []
+    ii = 0
+    print("Number of clusters: ", len(clusters_plus))   
+    for cluster in clusters_plus:
+        ii+=1
+        print("Cluster number ", ii)
+        # Get intersection of overdensity and cluster
+        intersection          = list(set(overdensity_indicies_plus).intersection(set(cluster)))
+        if ii==2:
+            print(intersection)
+            print("----------------------------")
+            print(cluster)
+        
+        minimum_upsilion_plus = np.min(result_dict['stats']['Upsilon_i_plus'][intersection])
+        idx_gt_min_plus       = [x for x in cluster if result_dict['stats']['Upsilon_i_plus'][x] > minimum_upsilion_plus]
+        IV_IE_list_plus.append(idx_gt_min_plus)
+    for cluster in clusters_minus:
+        # Get intersection of underdensity and cluster
+        intersection           = list(set(overdensity_indicies_minus).intersection(set(cluster)))
+        minimum_upsilion_minus = np.min(result_dict['stats_reverse']['Upsilon_i_plus'][intersection])
+        idx_gt_min_minus       = [x for x in cluster if result_dict['stats_reverese']['Upsilon_i_plus'][x] > minimum_upsilion_minus]
+        IV_IE_list_minus.append(idx_gt_min_minus)
+    return IV_IE_list_plus,IV_IE_list_minus
