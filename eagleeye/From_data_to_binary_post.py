@@ -225,5 +225,5 @@ def create_binary_array_cdist_post_subset(
     # neighbourhood_indexes = neighbourhood_indexes[:, : binary_array_cdist_parallel.shape[1]]
     # But we already do that inside process_distances. So it's consistent.
 
-    return binary_array_cdist_parallel, neighbourhood_indexes
+    return binary_array_cdist_parallel.astype(int), neighbourhood_indexes.astype(int)
 
