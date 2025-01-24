@@ -521,41 +521,38 @@ def iterative_equalization(
 
 
 
-
-
-
-def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus, Upsilon_star_minus, Upsilon_i_plus, Upsilon_star_plus,EXCESS_OVER, EXCESS_UNDER, smoothing,NUMBER_CORES, PARTITION_SIZE):
-    import From_data_to_binary
-    bin_nn_smoothing, NN_smoothing = From_data_to_binary.create_binary_array_cdist_post(data_with_anomaly, reference_data, smoothing+2, NUMBER_CORES,None,PARTITION_SIZE)
+# def compute_anomalous_region(reference_data, data_with_anomaly, Upsilon_i_minus, Upsilon_star_minus, Upsilon_i_plus, Upsilon_star_plus,EXCESS_OVER, EXCESS_UNDER, smoothing,NUMBER_CORES, PARTITION_SIZE):
+#     import From_data_to_binary
+#     bin_nn_smoothing, NN_smoothing = From_data_to_binary.create_binary_array_cdist_post(data_with_anomaly, reference_data, smoothing+2, NUMBER_CORES,None,PARTITION_SIZE)
     
-    bin_nn_smoothing = bin_nn_smoothing.astype(int)
-    NN_smoothing = NN_smoothing.astype(int)
+#     bin_nn_smoothing = bin_nn_smoothing.astype(int)
+#     NN_smoothing = NN_smoothing.astype(int)
 
-    EXCESS_UNDER_LOC = [x + data_with_anomaly.shape[0] for x in EXCESS_UNDER]
-    for jj in range(smoothing):
-        NN_smoothing[bin_nn_smoothing[:,jj+1]==0,jj+1] = NN_smoothing[bin_nn_smoothing[:,jj+1]==0,1] + data_with_anomaly.shape[0]
+#     EXCESS_UNDER_LOC = [x + data_with_anomaly.shape[0] for x in EXCESS_UNDER]
+#     for jj in range(smoothing):
+#         NN_smoothing[bin_nn_smoothing[:,jj+1]==0,jj+1] = NN_smoothing[bin_nn_smoothing[:,jj+1]==0,1] + data_with_anomaly.shape[0]
 
-    mask_under = np.isin(NN_smoothing[:, 1:], EXCESS_UNDER_LOC)
-    mask_over  = np.isin(NN_smoothing[:, 1:], EXCESS_OVER)
+#     mask_under = np.isin(NN_smoothing[:, 1:], EXCESS_UNDER_LOC)
+#     mask_over  = np.isin(NN_smoothing[:, 1:], EXCESS_OVER)
     
-    rows_with_match_under = np.any(mask_under, axis=1)
-    rows_with_match_over  = np.any(mask_over, axis=1)
+#     rows_with_match_under = np.any(mask_under, axis=1)
+#     rows_with_match_over  = np.any(mask_over, axis=1)
     
-    # Convert lists to sets
-    set1_under = set(np.where(rows_with_match_under)[0])
-    set2_under = set(np.where(Upsilon_i_minus>Upsilon_star_minus)[0])
+#     # Convert lists to sets
+#     set1_under = set(np.where(rows_with_match_under)[0])
+#     set2_under = set(np.where(Upsilon_i_minus>Upsilon_star_minus)[0])
 
-    # Find intersection
-    REGION_UNDER = list(set1_under.intersection(set2_under))
+#     # Find intersection
+#     REGION_UNDER = list(set1_under.intersection(set2_under))
     
-    # Convert lists to sets
-    set1_over = set(np.where(rows_with_match_over)[0])
-    set2_over = set(np.where(Upsilon_i_plus>Upsilon_star_plus)[0])
+#     # Convert lists to sets
+#     set1_over = set(np.where(rows_with_match_over)[0])
+#     set2_over = set(np.where(Upsilon_i_plus>Upsilon_star_plus)[0])
 
-    # Find intersection
-    REGION_OVER = list(set1_over.intersection(set2_over))
+#     # Find intersection
+#     REGION_OVER = list(set1_over.intersection(set2_over))
    
-    return REGION_UNDER, REGION_OVER
+#     return REGION_UNDER, REGION_OVER
 
 
 def get_indicies(thresh,res_new):
@@ -611,7 +608,7 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
     if critical_quantiles is not None:
         print("Critical quantiles detected. Computing null distribution!")
         KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
-        num_sequences                                  = 500000 # Hardcoded for good stats
+        num_sequences                                  = 100000 # Hardcoded for good stats
         p                                              = len(test_data) / (len(test_data) + len(reference_data))
         binary_sequences                               = np.random.binomial(n=1, p=p, size=(num_sequences, K_M))
         stats_null                                     = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation)
@@ -752,7 +749,7 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
 ############################################################################################################
 # Partitianing and BPR estimation after iterative equalisation 
 
-def cluster(data,K_M,Z=2.2):
+def cluster(data,K_M,Z=1.65):
     # Adjust maxk based on the number of samples
     data.compute_distances(maxk=K_M)
     data.compute_id_2NN()
@@ -760,7 +757,7 @@ def cluster(data,K_M,Z=2.2):
     data.compute_clustering_ADP(Z=Z, halo=False)
     return data 
 
-def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, Upsilon_star_minus,K_M,Z=2.2):
+def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, Upsilon_star_minus,K_M,Z=1.65):
     # For all points in the dataset, we will now partition them into groups with DPA clustering
     Upsilon_i_plus  = result_dict['stats']['Upsilon_i_plus']
     Upsilon_i_Val_plus  = result_dict['stats']['Upsilon_i_Val_plus']
