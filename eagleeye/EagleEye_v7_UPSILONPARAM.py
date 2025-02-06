@@ -452,7 +452,7 @@ def iterative_equalization(
         unique_elements_temp_dict               = {}
 
 
-        print(f"Max Upsilon remained: {Upsilon_i_temp.max()}")
+        print(f"Max Upsilon remaining: {Upsilon_i_temp.max()}")
         if unique_elements.any():
             unique_elements_temp_dict[key_thresh] = unique_elements
         else:
@@ -667,7 +667,7 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         result_dict['overdensities']                  = {}
         result_dict['underdensities']                 = {}
 #%%    equalize the overdensities
-    if critical_quantiles or Upsilon_stars:
+    if critical_quantiles is not None or Upsilon_stars is not None:
         # Iterative equilisation (halo removal) 
         # Check if list of quantiles exists or can be reused
         threshP  = min(Upsilon_star_plus)
@@ -705,10 +705,10 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
             print("Reusing unique elements for quantile/s.")
 #%%          
         # Save the useful disctionaries with all indices for anomolous regions for each quantile
-        if critical_quantiles:
+        if critical_quantiles is not None:
             result_dict['overdensities']                  = {thresh:get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_overdensities']) for thresh in critical_quantiles}
             result_dict['underdensities']                 = {thresh:get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_underdensities']) for thresh in critical_quantiles}            
-        elif Upsilon_stars:
+        elif Upsilon_stars is not None:
             result_dict['overdensities']                  = {thresh:get_indicies(thresh,result_dict['unique_elements_overdensities']) for thresh in Upsilon_stars}
             result_dict['underdensities']                 = {thresh:get_indicies(thresh,result_dict['unique_elements_underdensities']) for thresh in Upsilon_stars}
 
@@ -845,7 +845,7 @@ def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, U
 #     return IV_IE_list_plus,IV_IE_list_minus
 
 
-def IV_IE_get_dict(clusters,result_dict,thresh, data_with_anomaly, reference_data):
+def IV_IE_get_dict(clusters,result_dict, data_with_anomaly, reference_data, critical_quantile=None, Upsilon_star=None):
     
     clusters_plus,clusters_minus = clusters
     
@@ -863,15 +863,19 @@ def IV_IE_get_dict(clusters,result_dict,thresh, data_with_anomaly, reference_dat
     
     
     clusters_plus,clusters_minus = clusters
-    overdensity_indicies_plus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_overdensities'])
-    print(overdensity_indicies_plus)
-
-    overdensity_indicies_minus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_underdensities'])
-    
+    if critical_quantile:
+        thresh = critical_quantile
+        overdensity_indicies_plus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_overdensities'])
+        print(overdensity_indicies_plus)
+        overdensity_indicies_minus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_underdensities'])
+    elif Upsilon_star:
+        thresh = Upsilon_star
+        overdensity_indicies_plus = get_indicies(thresh,result_dict['unique_elements_overdensities'])
+        overdensity_indicies_minus = get_indicies(thresh,result_dict['unique_elements_underdensities'])    
     # IV_IE_list_plus = []
     # IV_IE_list_minus = []
     ii = 0
-    print("Number of clusters: ", len(clusters_plus))   
+    print("Number of clusters plus: ", len(clusters_plus))   
     for cluster in clusters_plus:
         cluster_r = cluster[cluster>=result_dict['stats']['Upsilon_i_Val_plus'].shape[0]] - result_dict['stats']['Upsilon_i_Val_plus'].shape[0]
         cluster_t = cluster[cluster<result_dict['stats']['Upsilon_i_plus'].shape[0]]
