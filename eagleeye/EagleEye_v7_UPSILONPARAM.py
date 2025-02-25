@@ -201,7 +201,7 @@ def binom_pmf_range(k, p):
 # 3) calculate_p_values function
 # ----------------------------------------------------------------------
 
-def calculate_p_values(binary_sequence, kstar_range, p, validation=None,verbose=False):
+def calculate_p_values(binary_sequence, kstar_range, p=0.5, validation=None,verbose=False):
     """
     Computes the -log p-values (minus and plus) for each row in binary_sequence
     over the given kstar_range. Returns a dictionary of summary statistics.
@@ -225,9 +225,10 @@ def calculate_p_values(binary_sequence, kstar_range, p, validation=None,verbose=
         'kstar_Val_plus': []
     }
 
+####### Need to input as Boolean
+
     if validation is not None:
         # Determine how many entries go to "validation"
-
         if isinstance(validation, int):
             len_val = validation
         else:
@@ -397,6 +398,7 @@ def iterative_equalization(
     """
     # Identify points that exceed the threshold
     subset_indices = np.where(Upsilon_i_T_wrt_R > Upsilon_star_plus)[0]
+    p = len(dataset_T) / (len(dataset_T) + len(dataset_R))
 
     # Create a (larger) binary array to have more room for iteration
     # (Requires your custom function from From_data_to_binary_post)
@@ -473,7 +475,7 @@ def iterative_equalization(
 
             # Recompute the p-values for these updated neighbor sets
             KSTAR_RANGE = range(20, K_M)
-            stats_local = calculate_p_values(NEW_binary_sequence, kstar_range=KSTAR_RANGE)
+            stats_local = calculate_p_values(NEW_binary_sequence, kstar_range=KSTAR_RANGE,p=p)
 
             # Update only for the sub-list
             Upsilon_i_temp[indices_updated] = stats_local['Upsilon_i_plus']
@@ -610,9 +612,9 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         print("Critical quantiles detected. Computing null distribution!")
         KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
         num_sequences                                  = 100000 # Hardcoded for good stats
-        p                                              = len(test_data) / (len(test_data) + len(reference_data))
+        pb                                             = len(test_data) / (len(test_data) + len(reference_data))
         binary_sequences                               = np.random.binomial(n=1, p=p, size=(num_sequences, K_M))
-        stats_null                                     = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation)
+        stats_null                                     = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation,p=pb)
         del(binary_sequences)
         Upsilon_i_plus_null  = stats_null['Upsilon_i_plus']
         Upsilon_i_minus_null = stats_null['Upsilon_i_minus']
@@ -651,15 +653,16 @@ def Soar(reference_data, test_data, result_dict_in={}, K_M=1000, critical_quanti
         KSTAR_RANGE                                    = range(20, K_M) # Range of kstar values to consider
         NUMBER_CORES                                   = num_cores  
         PARTITION_SIZE                                 = partition_size
+        p                                              = len(test_data) / (len(test_data) + len(reference_data))
         #%% Compute overdensities & inject validation
         print("Compute overdensities")
         binary_sequences                               = From_data_to_binary.create_binary_array_cdist(test_data, reference_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
-        stats                                          = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
+        stats                                          = calculate_p_values(binary_sequences, kstar_range=KSTAR_RANGE, validation=validation,verbose=True,p=p)
         del(binary_sequences)
         #%% compute underdensities & IV
         print("Compute underdensities")
         binary_sequences_reverse                       = From_data_to_binary.create_binary_array_cdist(reference_data, test_data, num_neighbors=K_M, num_cores=NUMBER_CORES, validation=validation,partition_size=PARTITION_SIZE)
-        stats_reverse                                  = calculate_p_values(binary_sequences_reverse, kstar_range=KSTAR_RANGE, validation=validation,verbose=True)
+        stats_reverse                                  = calculate_p_values(binary_sequences_reverse, kstar_range=KSTAR_RANGE, validation=validation,verbose=True,p=p)
         del(binary_sequences_reverse)
         result_dict['stats']                          = stats
         result_dict['stats_reverse']                  = stats_reverse
