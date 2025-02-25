@@ -89,8 +89,8 @@ class PValueCalculator:
         self.pval_array_dict = {}
         for kstar in self.kstar_range:
             self.pval_array_dict[kstar] = self.compute_neglog_array(kstar)
-            if self.verbose:
-                print(f"Computed p-values for k={kstar}")
+            # if self.verbose:
+                # print(f"Computed p-values for k={kstar}")
         # 4) Compute row-wise maxima across kstar_range
         self.compute_rowwise_maxima()
 
@@ -201,7 +201,7 @@ def binom_pmf_range(k, p):
 # 3) calculate_p_values function
 # ----------------------------------------------------------------------
 
-def calculate_p_values(binary_sequence, kstar_range, validation=None,verbose=False):
+def calculate_p_values(binary_sequence, kstar_range, p, validation=None,verbose=False):
     """
     Computes the -log p-values (minus and plus) for each row in binary_sequence
     over the given kstar_range. Returns a dictionary of summary statistics.
@@ -209,7 +209,7 @@ def calculate_p_values(binary_sequence, kstar_range, validation=None,verbose=Fal
     If 'validation' is not None (int or list of indices), the final arrays
     are split into training and validation subsets.
     """
-    p_val_info = PValueCalculator(binary_sequence, kstar_range, p=0.5, pvals_dict=None,verbose=verbose)
+    p_val_info = PValueCalculator(binary_sequence, kstar_range, p=p, pvals_dict=None,verbose=verbose)
 
     Upsilon_i_minus = p_val_info.min_pval_minus
     Upsilon_i_plus  = p_val_info.min_pval_plus
@@ -227,6 +227,7 @@ def calculate_p_values(binary_sequence, kstar_range, validation=None,verbose=Fal
 
     if validation is not None:
         # Determine how many entries go to "validation"
+
         if isinstance(validation, int):
             len_val = validation
         else:
@@ -813,37 +814,6 @@ def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, U
 
     return clusters_plus,clusters_minus
 
-# def IV_IE(clusters,result_dict,thresh):
-#     clusters_plus,clusters_minus = clusters
-#     overdensity_indicies_plus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_overdensities'])
-#     print(overdensity_indicies_plus)
-
-#     overdensity_indicies_minus = get_indicies(np.quantile(result_dict['Upsilon_i_plus_null'],  thresh),result_dict['unique_elements_underdensities'])
-#     IV_IE_list_plus = []
-#     IV_IE_list_minus = []
-#     ii = 0
-#     print("Number of clusters: ", len(clusters_plus))   
-#     for cluster in clusters_plus:
-#         ii+=1
-#         print("Cluster number ", ii)
-#         # Get intersection of overdensity and cluster
-#         intersection          = list(set(overdensity_indicies_plus).intersection(set(cluster)))
-#         if ii==2:
-#             print(intersection)
-#             print("----------------------------")
-#             print(cluster)
-        
-#         minimum_upsilion_plus = np.min(result_dict['stats']['Upsilon_i_plus'][intersection])
-#         idx_gt_min_plus       = [x for x in cluster if result_dict['stats']['Upsilon_i_plus'][x] >= minimum_upsilion_plus]
-#         IV_IE_list_plus.append(idx_gt_min_plus)
-#     for cluster in clusters_minus:
-#         # Get intersection of underdensity and cluster
-#         intersection           = list(set(overdensity_indicies_minus).intersection(set(cluster)))
-#         minimum_upsilion_minus = np.min(result_dict['stats_reverse']['Upsilon_i_plus'][intersection])
-#         idx_gt_min_minus       = [x for x in cluster if result_dict['stats_reverse']['Upsilon_i_plus'][x] >= minimum_upsilion_minus]
-#         IV_IE_list_minus.append(idx_gt_min_minus)
-#     return IV_IE_list_plus,IV_IE_list_minus
-
 
 def IV_IE_get_dict(clusters,result_dict, data_with_anomaly, reference_data, critical_quantile=None, Upsilon_star=None):
     
@@ -879,31 +849,7 @@ def IV_IE_get_dict(clusters,result_dict, data_with_anomaly, reference_data, crit
     for cluster in clusters_plus:
         cluster_r = cluster[cluster>=result_dict['stats']['Upsilon_i_Val_plus'].shape[0]] - result_dict['stats']['Upsilon_i_Val_plus'].shape[0]
         cluster_t = cluster[cluster<result_dict['stats']['Upsilon_i_plus'].shape[0]]
-        
-        # # Create the scatter plot and capture the scatter object
-        # fig = plt.figure(figsize=(10, 8))
-        # ax = fig.add_subplot(111, projection='3d')
-        # ax.scatter(
-        #         data_with_anomaly[cluster_t, 0],
-        #         data_with_anomaly[cluster_t, 1],
-        #         data_with_anomaly[cluster_t, 2],
-        #         alpha=1,
-        #         s=5
-        #     )
-        # ax.scatter(
-        #         reference_data[cluster_r, 0],
-        #         reference_data[cluster_r, 1],
-        #         reference_data[cluster_r, 2],
-        #         alpha=1,
-        #         s=5
-        #     )
-        # ax.set_xlim(-100,100)
-        # ax.set_ylim(-100,100)
-        # ax.set_zlim(-100,100)
-
-        # plt.title("debug ")
-        # plt.show()
-        
+    
         ii+=1
         print("Cluster number ", ii)
         # Get intersection of overdensity and cluster
@@ -976,6 +922,34 @@ def IV_IE_get_dict(clusters,result_dict, data_with_anomaly, reference_data, crit
 
 
 
+def pval_post_equalization(
+    test_data, 
+    reference_data, 
+    subset_indices,
+    K_M,
+    NUMBER_CORES,
+    PARTITION_SIZE
+    ):
+    
+    import From_data_to_binary_post
+    binary_sequences_pp, neighborhood_idx_pp = From_data_to_binary_post.create_binary_array_cdist_post_subset(
+        test_data[subset_indices,:],
+        reference_data,
+        range(len(subset_indices)),
+        num_neighbors=K_M ,
+        num_cores=NUMBER_CORES,
+        validation=None,
+        partition_size=PARTITION_SIZE
+    )    
+    p = len(test_data) / (len(test_data) + len(reference_data))
+    KSTAR_RANGE = range(20,K_M)
+    
+    stats_local = calculate_p_values(binary_sequences_pp, kstar_range=KSTAR_RANGE,p=p )
+
+            # Update only for the sub-list
+    
+    
+    return stats_local['Upsilon_i_plus']
 
 
 
