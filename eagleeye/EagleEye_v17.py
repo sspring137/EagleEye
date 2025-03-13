@@ -415,6 +415,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
         from utils_EE_v17 import compute_nearest_neighbors
         
         indices, Knn_model             = compute_nearest_neighbors(X, Y, K_M, n_jobs=n_jobs)
+        result_dict['Knn_model']       = Knn_model
         print("-----------------------------------------------------------------")
         print("Flagging of putative anomalous points")
         print("-----------------------------------------------------------------")  
