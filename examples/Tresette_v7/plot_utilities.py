@@ -20,10 +20,10 @@ def get_shades(num_clusters, cmap_name='Reds'):
     """
     cmap = plt.cm.get_cmap(cmap_name)
     # We'll pick values between 0.2 and 0.8 to avoid being too light/dark
-    if cmap_name=='Reds':
+    if cmap_name=='Oranges':
         return [cmap(v) for v in np.linspace(0.3, .7, num_clusters)]
     else:
-        return [cmap(v) for v in np.linspace(0.3, 1, num_clusters)]
+        return [cmap(v) for v in np.linspace(0.5, 1, num_clusters)]
 
 def plot_3d_ie_extra(IV_IE_dict, test_data, reference_data):
     """Example of a single-key plot for IE_extra, each cluster either red or blue
@@ -35,7 +35,7 @@ def plot_3d_ie_extra(IV_IE_dict, test_data, reference_data):
     under_clusters = IV_IE_dict["UNDER_clusters"]
     
     # Let's assume IE_extra => test_data for OVER, reference_data for UNDER (just as an example):
-    over_color = get_shades(len(over_clusters), 'Reds')
+    over_color = get_shades(len(over_clusters), 'Oranges')
     under_color = get_shades(len(under_clusters), 'Blues')
     
     # OVER
