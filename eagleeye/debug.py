@@ -14,12 +14,12 @@ import EagleEye_v17
 
 #%% Generate the data
 cont = 1000
-# X= np.random.randn(50000,3)
-X= np.random.randn(50000-cont,3)
-# Y= np.random.randn(50000,3)
-Y= np.random.randn(50000-cont,3)
-X = np.concatenate((X, -1- np.random.randn(cont,3)/10)).astype(float)
-Y = np.concatenate((Y, 1.+ np.random.randn(cont,3)/10)).astype(float) 
+X= np.random.randn(50000,3)
+# X= np.random.randn(50000-cont,3)
+Y= np.random.randn(50000,3)
+# Y= np.random.randn(50000-cont,3)
+# X = np.concatenate((X, -1- np.random.randn(cont,3)/10)).astype(float)
+# Y = np.concatenate((Y, 1.+ np.random.randn(cont,3)/10)).astype(float) 
 
 #%% EagleEye hyperparameters
 

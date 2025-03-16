@@ -116,7 +116,7 @@ def partitioning_function(X,Y,result_dict,p_ext=1e-5,Z=2.65 ):
         data_plus       = cluster(data_plus,min(result_dict['K_M'],len(indx_plus)-1),Z=Z)
         clusters_plus   = [indx_plus[data_plus.cluster_assignment == i] for i in range(len(data_plus.cluster_centers))]
     else:
-        clusters_plus = [ list(indx_plus)] 
+        clusters_plus = [ np.array(list(indx_plus))] 
     # cluster Y-overdensities
     
     combined_dataset_putative_m = np.vstack((result_dict['Upsilon_i_X'][:,np.newaxis], result_dict['Upsilon_i_X_inj'][:,np.newaxis]))
@@ -128,7 +128,7 @@ def partitioning_function(X,Y,result_dict,p_ext=1e-5,Z=2.65 ):
         data_minus       = cluster(data_minus,min(result_dict['K_M'],len(indx_minus)-1),Z=Z)
         clusters_minus  = [indx_minus[data_minus.cluster_assignment == i] for i in range(len(data_minus.cluster_centers))]
     else:
-        clusters_minus = [ list(indx_minus)] 
+        clusters_minus = [ np.array(list(indx_minus))] 
         
     print("-----------------------------------------------------------------")
     return clusters_plus,clusters_minus
