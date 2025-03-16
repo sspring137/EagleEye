@@ -90,7 +90,8 @@ def plot_third_subplot(ax,
                        Upsilon_set_pruned,
                        n_bins=100,
                        legend = True,
-                       var_legend = 'X' ):
+                       var_legend = 'X',
+                       vlll = -50):
     """
     Plots a log-log histogram on the provided Axes object using pre-loaded data.
 
@@ -160,7 +161,7 @@ def plot_third_subplot(ax,
     #ax.bar(bin_centers, norm_Upsilon_i, width=bin_widths, color='silver',
     #       alpha=0.6, edgecolor='white', linewidth=2,
     #       label=r'Flagged anomalous points: $\mathcal{Y}^+$', align='center')
-    vlll = -50
+    # vlll = -50
         # First 32 bars with a white edge
     ax.bar(bin_centers[:vlll], norm_Upsilon_i[:vlll], width=bin_widths[:vlll],
            color='silver', alpha=0.6, edgecolor='white', linewidth=2,
@@ -269,22 +270,23 @@ def plot_first_subplot(ax,
     
     
     # Plotting test data using truncated Reds
-
-    sc1 = axes1.scatter(
-        Y[result_dict['Y^+'], 0],
-        Y[result_dict['Y^+'], 1],
-        Y[result_dict['Y^+'], 2],
-        c=result_dict['Upsilon_i_Y'][result_dict['Y^+']],
-        cmap=truncated_cmap_reds,  # Use truncated Reds colormap
-        label=r'Flagged anomalous points: $\mathcal{Y}^+$',
-        alpha=1,
-        s=5,
-        vmin=result_dict['Upsilon_star_plus'][result_dict['p_ext']]
-    )
+    if np.any(result_dict['Y^+']):
+        sc1 = axes1.scatter(
+            Y[result_dict['Y^+'], 0],
+            Y[result_dict['Y^+'], 1],
+            Y[result_dict['Y^+'], 2],
+            c=result_dict['Upsilon_i_Y'][result_dict['Y^+']],
+            cmap=truncated_cmap_reds,  # Use truncated Reds colormap
+            label=r'Flagged anomalous points: $\mathcal{Y}^+$',
+            alpha=1,
+            s=5,
+            vmin=result_dict['Upsilon_star_plus'][result_dict['p_ext']]
+        )
 
     # Colorbar for the first scatter
-    colorbar1 = fig.colorbar(sc1, ax=axes1, orientation='vertical', fraction=0.05, pad=0.03)
-    colorbar1.set_label(r'$\mathbf{\Upsilon}_i(\mathcal{Y}^+)$')
+
+        colorbar1 = fig.colorbar(sc1, ax=axes1, orientation='vertical', fraction=0.05, pad=0.03)
+        colorbar1.set_label(r'$\mathbf{\Upsilon}_i(\mathcal{Y}^+)$')
 
     # Plotting reference data using truncated Purples
 
@@ -302,9 +304,7 @@ def plot_first_subplot(ax,
     colorbar2 = fig.colorbar(sc2, ax=axes1, orientation='horizontal', fraction=0.05, pad=0.03)
     colorbar2.set_label(r'$\mathbf{\Upsilon}_i(\mathcal{X}^+)$')
 
-    ax.set_xlim(-100, 100)
-    ax.set_ylim(-100, 100)
-    ax.set_zlim(-100, 100)
+
     #axes[0].set_title("$\\Upsilon_i^+ \geq \\Upsilon_*^+$ in Test and Reference ", fontsize=14)
     ax.legend(markerfirst=True, markerscale=3)
     
@@ -538,6 +538,215 @@ def plot_37_article(
                  fontsize=21, fontweight='bold', va='top', ha='left')
     ax3.annotate('F', xy=(0.02, 0.95), xycoords='axes fraction',
                  fontsize=21, fontweight='bold', va='top', ha='left')
+    
+    # Save the figure using the provided file name and display it
+    plt.savefig(save_name, format='pdf')
+    plt.show()
+
+#%%
+
+
+def plot_37_article_vanishing(
+    EE_book,
+    result_dict,
+    X,
+    Y,
+    p,
+    points_reference_ball,
+    points_test_ball,
+    Upsilon_i_equalized_Y,
+    Upsilon_i_equalized_X,
+    save_name
+):
+
+
+    # --- Create truncated versions of 'Oranges' and 'BuPu' colormaps ---
+    truncated_cmap_reds = truncate_colormap(plt.get_cmap('Oranges'), minval=0.3, maxval=1.0, n=100)
+    truncated_cmap_purples = truncate_colormap(plt.get_cmap('BuPu'), minval=0.5, maxval=1.0, n=100)
+
+    # --- Extract clusters from EE_book ---
+    over_clusters = EE_book.get("Y_OVER_clusters", {})
+    under_clusters = EE_book.get("X_OVER_clusters", {})
+
+    # Compute indices for various density lists
+    overdensities_IE_AG = [
+        idx 
+        for cluster_data in over_clusters.values() 
+        for idx in cluster_data.get('Repechaged', [])
+    ]
+    overdensities_IE = [
+        idx 
+        for cluster_data in over_clusters.values() 
+        for idx in cluster_data.get('Pruned', [])
+    ]
+    underdensities_IE_AG = [
+        idx 
+        for cluster_data in under_clusters.values() 
+        for idx in cluster_data.get('Repechaged', [])
+    ]
+    underdensities_IE = [
+        idx 
+        for cluster_data in under_clusters.values() 
+        for idx in cluster_data.get('Pruned', [])
+    ]
+
+    # Get the data arrays from result_dict
+    data_all_o       = result_dict['Upsilon_i_Y']
+    data_sub_o_IE_AG = data_all_o[overdensities_IE_AG]
+    data_sub_o_IE    = data_all_o[overdensities_IE]
+
+    data_all_u       = result_dict['Upsilon_i_X']
+    data_sub_u_IE_AG = data_all_u[underdensities_IE_AG]
+    data_sub_u_IE    = data_all_u[underdensities_IE]
+
+    fig = plt.figure(figsize=(21, 21))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1])
+    
+    # 3D subplots (ax0, ax1) ...
+    ax0a = fig.add_subplot(gs[0, 0], projection='3d')
+    ax0 = fig.add_subplot(gs[0, 1], projection='3d')
+    ax1 = fig.add_subplot(gs[1, 0], projection='3d')
+    #ax1b = fig.add_subplot(gs[1, 1], projection='3d')
+    # 1D distribution subplot
+    #ax2 = fig.add_subplot(gs[2, 0])
+    ax3 = fig.add_subplot(gs[1, 1])
+    
+    # -------------------------------------------------------------------------
+    # Continue with your plotting code:
+    axes = [ax0a, ax0, ax1,ax3]
+    
+    # Define subsets of data for the 3D scatter plots
+    what_ref   = X[:-1000, :]
+
+    # Plot background and contaminations on ax0a
+    ax0a.scatter(what_ref[:,0], what_ref[:,1], what_ref[:,2], 
+                 c='lightgray', s=.1, alpha=0.2, label=r'Background')
+    ax0a.scatter(points_reference_ball[:,0], points_reference_ball[:,1], points_reference_ball[:,2], 
+                 c='darkorange', s=15, alpha=1, label="Reference Dataset (within Sphere)")
+    ax0a.scatter(points_test_ball[:,0], points_test_ball[:,1], points_test_ball[:,2], 
+                 c='darkmagenta', s=15, alpha=1, label="Test Dataset (within Sphere)")
+    
+    # Add legend to one of the axes (using ax0)
+    ax0.legend(markerscale=2)
+
+    # Plot the first subplot using the helper function
+    plot_first_subplot(ax0, 
+    ax0,
+    fig,
+    result_dict, 
+    Y,
+    X,
+    truncated_cmap_reds, 
+    truncated_cmap_purples
+    )
+    ax0.set_xlim(-1, 1)
+    ax0.set_ylim(-1, 1)
+    ax0.set_zlim(-1, 1)
+    # Process and plot "OVER" anomalies on ax1
+    silver_over = result_dict['Y^+']
+    silver_over = [x for x in silver_over if x not in overdensities_IE_AG]
+    overdensities_IE_AG = [x for x in overdensities_IE_AG if x not in overdensities_IE]
+    
+    ax1.scatter(Y[silver_over, 0], Y[silver_over, 1], Y[silver_over, 2],
+                edgecolor='dimgray', facecolor='dimgray', marker='.', s=5, alpha=0.4,
+                label=r'Flagged anomalous points: $Y^+$')
+    ax1.scatter(Y[overdensities_IE_AG, 0], Y[overdensities_IE_AG, 1], Y[overdensities_IE_AG, 2],
+                c='limegreen', marker='*', s=7, alpha=0.6,
+                label=r'Pruned set: $\hat{Y}^+$')
+    ax1.scatter(Y[overdensities_IE, 0], Y[overdensities_IE, 1], Y[overdensities_IE, 2],
+                c='darkgreen', marker='*', s=11, alpha=1,
+                label=r'Anomalies after $rep\hat{e}chage$: $Y_{\alpha}^{\textrm{anom}}$')
+    
+    # Set limits for the 3D plot on ax1
+    ax1.set_xlim(-1, 1)
+    ax1.set_ylim(-1, 1)
+    ax1.set_zlim(-1, 1)
+
+    # Process and plot "UNDER" anomalies on ax1b
+    silver_under = result_dict['X^+']
+    silver_under = [x for x in silver_under if x not in underdensities_IE_AG]
+    underdensities_IE_AG = [x for x in underdensities_IE_AG if x not in underdensities_IE]
+    
+    axes[2].scatter(X[silver_under, 0], X[silver_under, 1], X[silver_under, 2],
+                 edgecolor='dimgray', facecolor='dimgray', marker='.', s=5, alpha=0.4,
+                 label=r'Flagged anomalous points: $X^+$')
+    axes[2].scatter(X[underdensities_IE_AG, 0], X[underdensities_IE_AG, 1], X[underdensities_IE_AG, 2],
+                 c='limegreen', marker='*', s=7, alpha=0.6,
+                 label=r'Pruned set: $\hat{X}^+$')
+    axes[2].scatter(X[underdensities_IE, 0], X[underdensities_IE, 1], X[underdensities_IE, 2],
+                 c='darkgreen', marker='*', s=11, alpha=1,
+                 label=r'Anomalies after $rep\hat{e}chage$: $\mathcal{X}_{\alpha}^{\textrm{anom}}$')
+    
+    # Set limits for the 3D plot on ax1b
+    axes[2].set_xlim(-1, 1)
+    axes[2].set_ylim(-1, 1)
+    axes[2].set_zlim(-1, 1)
+    
+    # Reorder legend handles for clarity in ax1 and ax1b
+    # handles1, _ = ax1.get_legend_handles_labels()
+    handles2, _ = axes[2].get_legend_handles_labels()
+    
+    # new_handles1 = [handles1[0], handles1[2], handles1[1]]
+    new_handles2 = [handles2[0], handles2[2], handles2[1]]
+    
+    # new_labels1 = [
+    #     r'Flagged anomalous points: $\mathcal{Y}^+$',
+    #     r'Pruned set: $\hat{\mathcal{Y}}^+$',
+    #     r'Anomalies after $rep\hat{e}chage$: $\mathcal{Y}_{\alpha}^{\mathrm{anom}}$'
+    # ]
+    new_labels2 = [
+        r'Flagged anomalous points: $\mathcal{X}^+$',
+        r'Pruned set: $\hat{\mathcal{X}}^+$',
+        r'Anomalies after $rep\hat{e}chage$: $\mathcal{X}_{\alpha}^{\mathrm{anom}}$'
+    ]
+    
+    axes[2].legend(new_handles2, new_labels2, markerscale=5)
+    
+    # Plot the 1D distributions using the helper function for each subplot
+    # plot_third_subplot(
+    #     ax3, 
+    #     data_all_o, 
+    #     result_dict['stats_null'][p], 
+    #     result_dict['Upsilon_star_plus'][result_dict['p_ext']], 
+    #     Upsilon_i_equalized_Y, 
+    #     data_sub_o_IE_AG, 
+    #     data_sub_o_IE,
+    #     n_bins=300,
+    #     legend=True,
+    #     var_legend='Y'
+    # )
+    
+    plot_third_subplot(
+        ax3, 
+        data_all_u, 
+        result_dict['stats_null'][1-p], 
+        result_dict['Upsilon_star_minus'][result_dict['p_ext']], 
+        Upsilon_i_equalized_X, 
+        data_sub_u_IE_AG, 
+        data_sub_u_IE,
+        n_bins=100,
+        legend=True,
+        var_legend='X',
+        vlll = -33
+    )
+    
+    # Adjust layout and add annotations to each subplot
+    plt.tight_layout()
+    
+    ax0a.annotate('A', xy=(0.02, 0.95), xycoords='axes fraction',
+                  fontsize=21, fontweight='bold', va='top', ha='left')
+    ax0.annotate('B', xy=(0.02, 0.95), xycoords='axes fraction',
+                 fontsize=21, fontweight='bold', va='top', ha='left')
+    ax1.annotate('C', xy=(0.02, 0.95), xycoords='axes fraction',
+                 fontsize=21, fontweight='bold', va='top', ha='left')
+    ax3.annotate('D', xy=(0.02, 0.95), xycoords='axes fraction',
+                  fontsize=21, fontweight='bold', va='top', ha='left')
+    ax1.set_title(r'$\mathcal{X}$ reference, $\mathcal{Y}$ test ($\mathcal{Y}$-Overdensities)')
+    # axes[2].set_title(r'$\mathcal{Y}$ reference, $\mathcal{X}$ test ($\mathcal{X}$-Overdensities)')
+    # ax2.annotate('E', xy=(0.02, 0.95), xycoords='axes fraction',
+    #              fontsize=21, fontweight='bold', va='top', ha='left')
+    # ax3.annotate('F', xy=(0.02, 0.95), xycoords='axes fraction',
+    #              fontsize=21, fontweight='bold', va='top', ha='left')
     
     # Save the figure using the provided file name and display it
     plt.savefig(save_name, format='pdf')
