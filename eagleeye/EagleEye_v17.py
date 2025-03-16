@@ -131,7 +131,7 @@ def IDE_step_optimized(Knn_model, X, Y, putative_indices, banned_set, K_M, p,
     nX = X.shape[0]
     
     # Determine overdensity type once.
-    is_overdensity = new_indices[0, 0] > nX
+    is_overdensity = new_indices[0, 0] >= nX
     if is_overdensity:
         banned_set = {x + nX for x in banned_set}
     
@@ -240,7 +240,6 @@ def IDE(Y_IDE, Y, X, Upsilon_i, Upsilon_star_plus, K_M, p, n_jobs, Knn_model):
         for sublist in Y_IDE.values():
             banned_set.update(sublist)
         putative_indices_left = [x for x in putative_indices_left if x not in banned_set]
-
     return Y_IDE
 
 
@@ -469,9 +468,19 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
     # Condition 3 
     #
     # Possible flag for completelly separated sets
-    # TBA
+    auxx = (indices > X.shape[0])
+    auxx[:X.shape[0],:] = ~auxx[:X.shape[0],:]
+    auxx = auxx.astype(int)
+    # TEMP HARDCODED, AT LEAST 10% of opposite set in the KNN to proceed with IDE
+    Condition_3 = (auxx==0).sum()/(auxx==1).sum() > 0.1 # hardcoded for now
+    if not Condition_3:
+        print("-----------------------------------------------------------------")
+        display("!!! Significant global density difference !!!")
+        display("!!! IDE will not be computed !!!")
+        print("-----------------------------------------------------------------")
+    result_dict['Condition_3'] = Condition_3
     #%%
-    if Condition_Y_1 & Condition_Y_2:
+    if Condition_Y_1 & Condition_Y_2 & Condition_3:
         print("-----------------------------------------------------------------")
         print("Pruning via iterative density equalization (IDE)")
         print("-----------------------------------------------------------------")  
@@ -502,7 +511,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
     #
     # Possible flag for completelly separated sets
     #TBA
-    if Condition_X_1 & Condition_X_2:
+    if Condition_X_1 & Condition_X_2 & Condition_3:
 
         display(Math(r"\text{Compute} \ \hat{\mathcal{X}}^+"))
         result_dict['X_IDE']           = IDE(
@@ -541,54 +550,87 @@ def Repechage(X,Y,result_dict,clusters,p_ext=1e-5):
     nX = X.shape[0]
     EE_book = {
     "Y_OVER_clusters": {
-        i: {"Putative": None, "Pruned": None, "Repechaged": None, "Background": None}
+        i: {"Putative": [], "Pruned": [], "Repechaged": [], "Background": []}
         for i in range(len(clusters_plus))
     },
     "X_OVER_clusters": {
-        i: {"Putative": None, "Pruned": None, "Repechaged": None, "Background": None}
+        i: {"Putative": [], "Pruned": [], "Repechaged": [], "Background": []}
         for i in range(len(clusters_minus))
     }
     }   
-    ii = 0
-    display(Math(r"\text{Compute} \ \mathcal{Y}_\alpha^{\mathrm{anom}}"))
-    for cluster in clusters_plus:
-        
-        cluster_X = cluster[cluster<nX]
-        cluster_Y = cluster[cluster>=nX]-nX
-        
-        ii+=1
-        print("alpha =", ii)
-        # Get intersection of overdensity and cluster
-        intersection           = list(set(result_dict['Y_Pruned'][p_ext]).intersection(set(cluster_Y)))
-        if intersection:
-            # get the local new trashold
-            Upsilon_alpha_plus = np.quantile(result_dict['Upsilon_i_Y'][intersection],0.01)
-            
-            EE_book['Y_OVER_clusters'][ii-1]['Putative']     = cluster_Y
-            EE_book['Y_OVER_clusters'][ii-1]['Pruned']       = intersection
-            EE_book['Y_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_Y if result_dict['Upsilon_i_Y'][x] >= Upsilon_alpha_plus]
-            EE_book['Y_OVER_clusters'][ii-1]['Background']   = [x for x in cluster_X if result_dict['Upsilon_i_Y_inj'][x] >= Upsilon_alpha_plus]
-    display("DONE!") 
     
-    display(Math(r"\text{Compute} \ \mathcal{X}_\alpha^{\mathrm{anom}}"))
-    ii = 0
-    for cluster in clusters_minus:
-        
-        cluster_X = cluster[cluster<nX]
-        cluster_Y = cluster[cluster>=nX]-nX
-        
-        ii+=1
-        print("alpha =", ii)
-        # Get intersection of overdensity and cluster
-        intersection           = list(set(result_dict['X_Pruned'][p_ext]).intersection(set(cluster_X)))
-        if intersection:
-            # get the local new trashold
-            Upsilon_alpha_minus = np.quantile(result_dict['Upsilon_i_X'][intersection],0.01)
+    # if the two sets are majourly disjoint the Pruned and the Repêchage sets are NOT computed
+    if  not result_dict['Condition_3']:
+        print("-----------------------------------------------------------------")
+        display("!!! Significant global density difference !!!")
+        display("!!! Repêchage will not be computed !!!")
+        print("-----------------------------------------------------------------")    
+        # in this case save only the putatives
+        ii = 0
+        for cluster in clusters_plus:
+            cluster_Y = cluster[cluster>=nX]-nX
+            ii+=1
+            print("alpha =", ii)
+            EE_book['Y_OVER_clusters'][ii-1]['Putative']     = cluster_Y
+        ii = 0
+        for cluster in clusters_minus:
             
+            cluster_X = cluster[cluster<nX]            
+            ii+=1
+            print("alpha =", ii)
             EE_book['X_OVER_clusters'][ii-1]['Putative']     = cluster_X
-            EE_book['X_OVER_clusters'][ii-1]['Pruned']       = intersection
-            EE_book['X_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_X if result_dict['Upsilon_i_X'][x] >= Upsilon_alpha_minus]
-            EE_book['X_OVER_clusters'][ii-1]['Background']   = [x for x in cluster_Y if result_dict['Upsilon_i_X_inj'][x] >= Upsilon_alpha_minus]
-    display("DONE!")    
-    return EE_book
+        # in this case exit from the function
+        return EE_book
+    else:
+        
+        ii = 0
+        if result_dict['Y_Pruned']:
+            display(Math(r"\text{Compute} \ \mathcal{Y}_\alpha^{\mathrm{anom}}"))
+        
+            for cluster in clusters_plus:
+                
+                cluster_X = cluster[cluster<nX]
+                cluster_Y = cluster[cluster>=nX]-nX
+                
+                ii+=1
+                print("alpha =", ii)
+                # Get intersection of overdensity and cluster
+                intersection           = list(set(result_dict['Y_Pruned'][p_ext]).intersection(set(cluster_Y)))
+                if intersection:
+                    # get the local new trashold
+                    Upsilon_alpha_plus = np.quantile(result_dict['Upsilon_i_Y'][intersection],0.01)
+                    
+                    EE_book['Y_OVER_clusters'][ii-1]['Putative']     = cluster_Y
+                    EE_book['Y_OVER_clusters'][ii-1]['Pruned']       = intersection
+                    EE_book['Y_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_Y if result_dict['Upsilon_i_Y'][x] >= Upsilon_alpha_plus]
+                    EE_book['Y_OVER_clusters'][ii-1]['Background']   = [x for x in cluster_X if result_dict['Upsilon_i_Y_inj'][x] >= Upsilon_alpha_plus]
+            display("DONE!") 
+        else:
+            display("!!! No Y-Overdensities found !!!")
+            
+        ii = 0
+        if result_dict['X_Pruned']:
+            display(Math(r"\text{Compute} \ \mathcal{X}_\alpha^{\mathrm{anom}}"))
+        
+            for cluster in clusters_minus:
+                
+                cluster_X = cluster[cluster<nX]
+                cluster_Y = cluster[cluster>=nX]-nX
+                
+                ii+=1
+                print("alpha =", ii)
+                # Get intersection of overdensity and cluster
+                intersection           = list(set(result_dict['X_Pruned'][p_ext]).intersection(set(cluster_X)))
+                if intersection:
+                    # get the local new trashold
+                    Upsilon_alpha_minus = np.quantile(result_dict['Upsilon_i_X'][intersection],0.01)
+                    
+                    EE_book['X_OVER_clusters'][ii-1]['Putative']     = cluster_X
+                    EE_book['X_OVER_clusters'][ii-1]['Pruned']       = intersection
+                    EE_book['X_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_X if result_dict['Upsilon_i_X'][x] >= Upsilon_alpha_minus]
+                    EE_book['X_OVER_clusters'][ii-1]['Background']   = [x for x in cluster_Y if result_dict['Upsilon_i_X_inj'][x] >= Upsilon_alpha_minus]
+            display("DONE!")    
+        else:
+            display("!!! No X-Overdensities found !!!")
+        return EE_book
 
