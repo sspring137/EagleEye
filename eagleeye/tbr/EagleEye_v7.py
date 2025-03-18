@@ -580,10 +580,9 @@ def pval_post_equalization(
     p = len(test_data) / (len(test_data) + len(reference_data))
     KSTAR_RANGE = range(20,K_M)
     
-    stats_local = calculate_p_values(binary_sequences_pp, kstar_range=KSTAR_RANGE,p=p )
+    stats_local = calculate_p_values(binary_sequences_pp, kstar_range=KSTAR_RANGE,p=p)
 
             # Update only for the sub-list
-    
     
     return stats_local['Upsilon_i_plus']
 

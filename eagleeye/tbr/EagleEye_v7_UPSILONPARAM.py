@@ -774,11 +774,11 @@ def cluster(data,K_M,Z=1.65):
 
 def partitian_function(reference_data,test_data,result_dict,Upsilon_star_plus, Upsilon_star_minus,K_M,Z=1.65):
     # For all points in the dataset, we will now partition them into groups with DPA clustering
-    Upsilon_i_plus  = result_dict['stats']['Upsilon_i_plus']
-    Upsilon_i_Val_plus  = result_dict['stats']['Upsilon_i_Val_plus']
+    Upsilon_i_plus         = result_dict['stats']['Upsilon_i_plus']
+    Upsilon_i_Val_plus     = result_dict['stats']['Upsilon_i_Val_plus']
     
     
-    Upsilon_i_plus_rev = result_dict['stats_reverse']['Upsilon_i_plus']
+    Upsilon_i_plus_rev     = result_dict['stats_reverse']['Upsilon_i_plus']
     Upsilon_i_Val_plus_rev = result_dict['stats_reverse']['Upsilon_i_Val_plus']
     
     

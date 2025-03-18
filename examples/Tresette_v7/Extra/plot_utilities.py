@@ -321,6 +321,7 @@ def plot_points_extracted_by_iterative_equalization(
     threshold=0.9999,
     title="Points extracted by Iterative Equalization"
 ):
+        # TODO - Ad functionality to give upsilon star as
     """
     Plots the points extracted from 'data_with_anomaly' and 'reference_data' 
     via iterative equalization, using a specified threshold. 

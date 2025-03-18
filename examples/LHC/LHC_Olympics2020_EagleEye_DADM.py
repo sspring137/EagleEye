@@ -1,26 +1,31 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-@author: Sebastian Springer (sspringe137) and Andre Scaffidi (AndreScaffidi)
+Created on Fri May 24 11:23:36 2024
+
+@author: Sebastian Springer (sspringe137)
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.append("../../")
-import EagleEye as EagleEye
-import From_data_to_binary
+sys.path.append('../../eagleeye')
+import EagleEye_v17 as EagleEye
+
 
 # import torch
 from IPython.display import display
 from sklearn.preprocessing import StandardScaler
 import os
 import sys
+import pickle
 #%% load the data
-all_data = np.load('data/LHC_data1p1M_new_features.npy')
+all_data = np.load('./data/LHC_data1p1M_new_features.npy')
 scaler = StandardScaler()
 standardized_data = all_data[:,:-1]/np.abs(all_data[:,:-1]).max(axis=0)
 ####################################################################################
 # Define the parameters
-num_cores = 10
+num_cores = 20
 data_size = 500000
 val_size  = int(1 * data_size) # Itteravely throw one point at a time fron the reference set to the test set for validation
 
@@ -44,35 +49,20 @@ else:
     lables_mix = np.concatenate((np.zeros(data_size-anomaly_size), np.ones(anomaly_size)), axis=0)
 ####################################################################################
 # Begin calls to EagleEye
-do_validation = True    
-if do_validation:
-    validation                                 = list(range(val_size)) # Give indicies of reference samples to use for point wise validation inejctions. 
-else:
-    validation = None
-binary_sequences                               = From_data_to_binary.create_binary_array_cdist(mixed_samples, reference_samples, num_neighbors, num_cores=10, validation=validation,partition_size=10)
-display('binary done!')
-stats                                          = EagleEye.calculate_p_values(binary_sequences, kstar_range, validation=validation,num_cores=10)
-display('pvalues done!')
+Upsilon_star_plus          = 14
 
-# Get the statisitcs: Upsilons and kstars for the test + validation
-Upsilon_i, kstar_, Upsilon_i_Val, kstar_Val    = stats['Upsilon_i'],stats['kstar_'],stats['Upsilon_i_Val'],stats['kstar_Val']
+res,_  = EagleEye.Soar(reference_samples, mixed_samples, result_dict_in = {}, K_M = num_neighbors,n_jobs=num_cores,p_ext=1e-5,stats_null={0.5:[Upsilon_star_plus]} )
 
+# Save the labels and samples!
+res['stats'] = {}
+res['stats']['lables_mix']        = lables_mix 
+res['stats']['mixed_samples']     = mixed_samples 
+res['stats']['reference_samples'] = reference_samples 
 
-# Save the variables to a single file
-filename = f'results/LHC_EagleEye_results_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}_.npz'
-np.savez(filename, 
-            binary_sequences=binary_sequences, 
-            mixed_samples=mixed_samples, 
-            reference_samples=reference_samples, 
-            kstar_=kstar_, 
-            kstar_Val=kstar_Val,
-            Upsilon_i=Upsilon_i, 
-            Upsilon_i_Val=Upsilon_i_Val,
-            lables_mix=lables_mix, 
-            anomaly_size=anomaly_size)
-display('save done!')
-
-print(f"Data saved successfully as {filename}.")
+# Save the res dictionary to a pickle file
+with open(f'./results/LHC_EagleEye_res_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}.pkl', 'wb') as f:
+    pickle.dump(res, f)
+print(f"Data saved successfully as LHC_EagleEye_res_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}.pkl ")
 
     
 
