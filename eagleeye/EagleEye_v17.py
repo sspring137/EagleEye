@@ -122,13 +122,13 @@ class PValueCalculator:
 
 
 def IDE_step_optimized(Knn_model, X, Y, putative_indices, banned_set, K_M, p, 
-                         Upsilon_i, Upsilon_star_plus, neighbors_dict):
+                         Upsilon_i, Upsilon_star_plus, neighbors_dict, nX):
     """
     Optimized version of IDE_step that vectorizes filtering and batches KNN recomputation.
     """
     # Retrieve precomputed new_indices for the current putative_indices.
     new_indices = np.array([neighbors_dict[i] for i in putative_indices])
-    nX = X.shape[0]
+    # nX = X.shape[0]
     
     # Determine overdensity type once.
     is_overdensity = new_indices[0, 0] >= nX
@@ -210,7 +210,7 @@ def IDE_step_optimized(Knn_model, X, Y, putative_indices, banned_set, K_M, p,
                         if stat > Upsilon_star_plus]
     
     return unique_elements_l, max_p_val, updated_putative
-def IDE(Y_IDE, Y, X, Upsilon_i, Upsilon_star_plus, K_M, p, n_jobs, Knn_model):
+def IDE(Y_IDE, Y, X, Upsilon_i, Upsilon_star_plus, K_M, p, n_jobs, Knn_model, nX):
     """
     Iteratively equalize overdensities of Y with respect to X.
     """
@@ -234,7 +234,7 @@ def IDE(Y_IDE, Y, X, Upsilon_i, Upsilon_star_plus, K_M, p, n_jobs, Knn_model):
 
     while putative_indices_left:
         pruned_step, key_step, putative_indices_left = IDE_step_optimized(
-            Knn_model, X, Y, putative_indices_left, banned_set, K_M, p, Upsilon_i, Upsilon_star_plus, neighbors_dict
+            Knn_model, X, Y, putative_indices_left, banned_set, K_M, p, Upsilon_i, Upsilon_star_plus, neighbors_dict, nX
         )
         Y_IDE[key_step] = pruned_step
         for sublist in Y_IDE.values():
@@ -391,7 +391,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
     #%%  set up      
     KSTAR_RANGE                        = range(20, K_M) # Range of kstar values to consider
     p                                  = len(Y) / (len(Y) + len(X))
-    
+    nX = X.shape[0]
     #%%   load or compute the null 
     if not stats_null:
         
@@ -494,7 +494,8 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
         K_M,
         p,
         n_jobs,
-        Knn_model
+        Knn_model,
+        nX
         )
         display("DONE!")      
     #%%
@@ -523,15 +524,16 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
         K_M,
         1-p,
         n_jobs,
-        Knn_model
+        Knn_model,
+        nX
         )
         display("DONE!")         
 #%%     get The Pruned Sets
-        if result_dict['Y_IDE']:
-            result_dict['Y_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_plus'][p_ext],result_dict['Y_IDE']) }
-    
-        if result_dict['X_IDE']:
-            result_dict['X_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_minus'][p_ext],result_dict['X_IDE']) }
+    if result_dict['Y_IDE']:
+        result_dict['Y_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_plus'][p_ext],result_dict['Y_IDE']) }
+
+    if result_dict['X_IDE']:
+        result_dict['X_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_minus'][p_ext],result_dict['X_IDE']) }
 
     return result_dict, stats_null
 
