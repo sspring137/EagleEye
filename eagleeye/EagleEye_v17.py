@@ -3,7 +3,7 @@
 """
 Created on Wed Fri 7 15:38:20 2025
 
-@author: sspringe
+@author: sspringe, AndreScaffidi
 """
 
 import numpy as np
@@ -542,7 +542,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
 # 4) Repêchage
 # ----------------------------------------------------------------------
 
-def Repechage(X,Y,result_dict,clusters,p_ext=1e-5):
+def Repechage(X,Y,result_dict,clusters,p_ext=1e-5,quant=0.01):
     print("-----------------------------------------------------------------")
     print("Repêchage")
     print("-----------------------------------------------------------------")  
@@ -598,8 +598,8 @@ def Repechage(X,Y,result_dict,clusters,p_ext=1e-5):
                 intersection           = list(set(result_dict['Y_Pruned'][p_ext]).intersection(set(cluster_Y)))
                 if intersection:
                     # get the local new trashold
-                    Upsilon_alpha_plus = np.quantile(result_dict['Upsilon_i_Y'][intersection],0.01)
-                    
+                    Upsilon_alpha_plus = np.quantile(result_dict['Upsilon_i_Y'][intersection],quant)
+                    EE_book['Y_OVER_clusters'][ii-1]['Upsilon_alpha_plus']     = Upsilon_alpha_plus
                     EE_book['Y_OVER_clusters'][ii-1]['Putative']     = cluster_Y
                     EE_book['Y_OVER_clusters'][ii-1]['Pruned']       = intersection
                     EE_book['Y_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_Y if result_dict['Upsilon_i_Y'][x] >= Upsilon_alpha_plus]
@@ -623,8 +623,8 @@ def Repechage(X,Y,result_dict,clusters,p_ext=1e-5):
                 intersection           = list(set(result_dict['X_Pruned'][p_ext]).intersection(set(cluster_X)))
                 if intersection:
                     # get the local new trashold
-                    Upsilon_alpha_minus = np.quantile(result_dict['Upsilon_i_X'][intersection],0.01)
-                    
+                    Upsilon_alpha_minus = np.quantile(result_dict['Upsilon_i_X'][intersection],quant)
+                    EE_book['X_OVER_clusters'][ii-1]['Upsilon_alpha_minus']     = Upsilon_alpha_minus
                     EE_book['X_OVER_clusters'][ii-1]['Putative']     = cluster_X
                     EE_book['X_OVER_clusters'][ii-1]['Pruned']       = intersection
                     EE_book['X_OVER_clusters'][ii-1]['Repechaged']   = [x for x in cluster_X if result_dict['Upsilon_i_X'][x] >= Upsilon_alpha_minus]
