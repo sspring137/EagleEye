@@ -38,7 +38,7 @@ For commercial use, please see the [Commercial License Agreement](COMMERCIAL-LIC
 ## Acknowledgment
 
 If you use EagleEye in your publications please include an propriate citation to the article linked with tis repository. For products, please include the following acknowledgment:
-- "This software uses EagleEye developed by Sebastian Springer Alessandro Laio and Andre Scaffidi at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
+- "This software uses EagleEye developed by Sebastian Springer et al. at the International School for Advanced Studies (SISSA), Via Bonomea, 265, 34136 Trieste TS (Italy)."
 
 ## Disclaimer
 
