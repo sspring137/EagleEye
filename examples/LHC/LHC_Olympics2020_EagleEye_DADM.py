@@ -18,7 +18,7 @@ import os
 import sys
 import pickle
 #%% load the data
-all_data = np.load('./data/LHC_data1p1M_new_features.npy')
+all_data = np.load('./Data/LHC_data1p1M_new_features.npy')
 scaler = StandardScaler()
 standardized_data = all_data[:,:-1]/np.abs(all_data[:,:-1]).max(axis=0)
 ####################################################################################
@@ -56,7 +56,7 @@ res['stats']['mixed_samples']     = mixed_samples
 res['stats']['reference_samples'] = reference_samples 
 
 # Save the res dictionary to a pickle file
-with open(f'./results/LHC_EagleEye_res_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}.pkl', 'wb') as f:
+with open(f'./Results/LHC_EagleEye_res_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}.pkl', 'wb') as f:
     pickle.dump(res, f)
 print(f"Data saved successfully as LHC_EagleEye_res_{data_size}_anomaly_size_{anomaly_size}_kstar_range_{kstar_range[0]}_{kstar_range[-1]}.pkl ")
 
