@@ -7,14 +7,12 @@ Created on Fri May 24 11:23:36 2024
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 sys.path.append('../../eagleeye')
-import EagleEye_v17 as EagleEye
+import EagleEye as EagleEye
 
 
 # import torch
-from IPython.display import display
 from sklearn.preprocessing import StandardScaler
 import os
 import sys
