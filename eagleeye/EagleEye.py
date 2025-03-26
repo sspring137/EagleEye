@@ -395,7 +395,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
     #%%   load or compute the null 
     if not stats_null:
         
-        from utils_EE_v17 import compute_the_null
+        from utils_EE import compute_the_null
         
         stats_null                     = compute_the_null(p, K_M)
         
@@ -411,7 +411,7 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
         print("-----------------------------------------------------------------")
         print("Compute the nearest neighbours")
         
-        from utils_EE_v17 import compute_nearest_neighbors
+        from utils_EE import compute_nearest_neighbors
         
         indices, Knn_model             = compute_nearest_neighbors(X, Y, K_M, n_jobs=n_jobs)
         result_dict['Knn_model']       = Knn_model
