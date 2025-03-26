@@ -44,3 +44,6 @@ If you use EagleEye in your publications please include an propriate citation to
 ## Disclaimer
 
 The software is provided "as-is" without any warranty of any kind.
+
+
+![eagle](eagleeye/eagle_eye_log.jpeg)
