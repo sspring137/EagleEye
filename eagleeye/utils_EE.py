@@ -8,7 +8,7 @@ Created on Wed Fri 7 16:17:33 2025
 
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from EagleEye_v17 import PValueCalculator
+from EagleEye import PValueCalculator
      
 
     
