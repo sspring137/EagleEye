@@ -636,3 +636,77 @@ def Repechage(X,Y,result_dict,clusters,p_ext=1e-5,quant=0.01):
             display("!!! No X-Overdensities found !!!")
         return EE_book
 
+def S_SB_estimate_Y_overdensities(dict,repechage_EE_book):
+
+    """
+    Signal purity estimates for overdensity anomalies detected by EagleEye
+
+    dict: result dictionary from Soar()
+    repechage_EE_book: result dictionary from Repechage()
+
+    Returns: 
+    - Signal purity (S/S+B) estimates per anomaly mode. The 'Total' purity estimate is obtained from the Union
+    of all observed anomaly clusters
+    - Upsilon_alpha_plus for each cluster
+    """
+    over_clusters  =  repechage_EE_book["Y_OVER_clusters"] # Need to generate as a function of Upsilon_star
+    lenSo          =  len(np.concatenate([over_clusters[idx]['Repechaged'] for idx in list(over_clusters.keys())]))
+    lenBo          =  len(np.concatenate([over_clusters[idx]['Background'] for idx in list(over_clusters.keys())]))
+    lenWo          =  len(np.concatenate([over_clusters[idx]['Pruned'] for idx in list(over_clusters.keys())]))
+    n2             =  len(dict['Upsilon_i_X'])
+    n1             =  len(dict['Upsilon_i_Y'])
+    under_clusters =  repechage_EE_book["X_OVER_clusters"]
+    lenWu          =  len(np.concatenate([under_clusters[idx]['Pruned'] for idx in list(under_clusters.keys())]))
+    S_SB = lenSo  - (lenBo *  (n2 - lenWo)/ (n1 - lenWu) )
+    S_SB = S_SB / lenSo
+    S_SB = {'Total' : S_SB}
+    Upsilon_xi = {}
+    # Now get estimate per anomaly
+    for idx in list(over_clusters.keys()):
+        lenSo          =  len(over_clusters[idx]['Repechaged'])
+        if lenSo < 5:
+            continue
+        lenBo          =  len(over_clusters[idx]['Background'])
+        lenWo          =  len(over_clusters[idx]['Pruned'])
+        S_SB[idx] = lenSo  - (lenBo *  (n2 - lenWo)/ (n1 - lenWu))
+        S_SB[idx] = S_SB[idx] / lenSo
+        Upsilon_xi[idx] = min(dict['Upsilon_i_Y'][over_clusters[idx]['Repechaged']])
+    return {"Purity" : S_SB, "Upsilon_alpha_plus" : Upsilon_xi}
+
+
+def S_SB_estimate_X_overdensities(dict,repechage_EE_book):
+
+    """
+    Signal purity estimates for X_overdensity (Y-underdensity) anomalies detected by EagleEye
+
+    dict: result dictionary from Soar()
+    repechage_EE_book: result dictionary from Repechage()
+
+    Returns: 
+    - Signal purity (S/S+B) estimates per anomaly mode. The 'Total' purity estimate is obtained from the Union
+    of all observed anomaly clusters
+    - Upsilon_alpha_minus for each cluster
+    """
+    over_clusters  =  repechage_EE_book["X_OVER_clusters"] # Need to generate as a function of Upsilon_star
+    lenSo          =  len(np.concatenate([over_clusters[idx]['Repechaged'] for idx in list(over_clusters.keys())]))
+    lenBo          =  len(np.concatenate([over_clusters[idx]['Background'] for idx in list(over_clusters.keys())]))
+    lenWo          =  len(np.concatenate([over_clusters[idx]['Pruned'] for idx in list(over_clusters.keys())]))
+    n2             =  len(dict['Upsilon_i_Y'])
+    n1             =  len(dict['Upsilon_i_X'])
+    under_clusters =  repechage_EE_book["Y_OVER_clusters"]
+    lenWu          =  len(np.concatenate([under_clusters[idx]['Pruned'] for idx in list(under_clusters.keys())]))
+    S_SB = lenSo  - (lenBo *  (n2 - lenWo)/ (n1 - lenWu) )
+    S_SB = S_SB / lenSo
+    S_SB = {'Total' : S_SB}
+    Upsilon_xi = {}
+    # Now get estimate per anomaly
+    for idx in list(over_clusters.keys()):
+        lenSo          =  len(over_clusters[idx]['Repechaged'])
+        if lenSo < 5:
+            continue
+        lenBo          =  len(over_clusters[idx]['Background'])
+        lenWo          =  len(over_clusters[idx]['Pruned'])
+        S_SB[idx] = lenSo  - (lenBo *  (n2 - lenWo)/ (n1 - lenWu))
+        S_SB[idx] = S_SB[idx] / lenSo
+        Upsilon_xi[idx] = min(dict['Upsilon_i_X'][over_clusters[idx]['Repechaged']])
+    return {"Purity" : S_SB, "Upsilon_alpha_minus" : Upsilon_xi}

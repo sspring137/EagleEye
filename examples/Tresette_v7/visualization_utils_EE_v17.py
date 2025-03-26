@@ -540,7 +540,7 @@ def plot_37_article(
                  fontsize=21, fontweight='bold', va='top', ha='left')
     
     # Save the figure using the provided file name and display it
-    plt.savefig(save_name, format='pdf')
+    plt.savefig(save_name, format='png')
     plt.show()
 
 #%%
