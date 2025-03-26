@@ -25,9 +25,8 @@ scaler = StandardScaler()
 standardized_data = all_data[:,:-1]/np.abs(all_data[:,:-1]).max(axis=0)
 ####################################################################################
 # Define the parameters
-num_cores = 20
-data_size = 500000
-val_size  = int(1 * data_size) # Itteravely throw one point at a time fron the reference set to the test set for validation
+num_cores             = 20
+data_size             = 500000
 
 # Read in the first command line argument as anomaly_possibility
 anomaly_size          = int(sys.argv[1])
@@ -49,9 +48,8 @@ else:
     lables_mix = np.concatenate((np.zeros(data_size-anomaly_size), np.ones(anomaly_size)), axis=0)
 ####################################################################################
 # Begin calls to EagleEye
-Upsilon_star_plus          = 14
-
-res,_  = EagleEye.Soar(reference_samples, mixed_samples, result_dict_in = {}, K_M = num_neighbors,n_jobs=num_cores,p_ext=1e-5,stats_null={0.5:[Upsilon_star_plus]} )
+Upsilon_star_plus                 = 14
+res,_                             = EagleEye.Soar(reference_samples, mixed_samples, result_dict_in = {}, K_M = num_neighbors,n_jobs=num_cores,p_ext=1e-5,stats_null={0.5:[Upsilon_star_plus]} )
 
 # Save the labels and samples!
 res['stats'] = {}
