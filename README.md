@@ -3,9 +3,9 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14016472.svg)](https://doi.org/10.5281/zenodo.14016472)
 
-![Example Image](eagleeye/F0_EagleEye.png)
+![EagleEye](./examples/Tresette_v7/Fig2.png)
 <small>
-Above: Toroidal anomalies are captured in 10-dimensional gaussian data by `EagleEye`. 
+Above: Multimodal over-densities (red) and under-densities (purple) captured by $\texttt{EagleEye}$. 
 </small>
 
 **EagleEye** is a novel, density-based anomaly detection method designed for comparing two datasets to identify deviations in the test dataset. By analyzing the local neighborhood of each point in the test set, EagleEye detects subtle density anomalies without making any assumptions about the underlying data distribution.
@@ -15,6 +15,7 @@ EagleEye has several key features:
 - **Easy to interpret**: Based on intuitive concepts like flipping a coin.
 - **Reproducible**: Guarantees consistent results across multiple runs.
 - **Efficient and scalable**: Suitable for large datasets and can be parallelized for faster computation.
+- **Signal-purity estimation**: Once density anomalies are observed, can compute estimates of the 'signal purity' _per local density annomaly_ in a completely unsupervised fashion.
 
 
 ## Examples
