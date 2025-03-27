@@ -21,6 +21,9 @@ EagleEye has several key features:
 ## Examples
 The `examples/` directory contains code to regenerate the figures from the main text and supplementary information of the paper. 
 
+![EagleEye Demo](examples/Basic_usage/putative_threshold_with_histogram.gif)
+
+
 ## Licensing
 
 EagleEye is available under a dual licensing model:
