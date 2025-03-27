@@ -210,6 +210,8 @@ def IDE_step_optimized(Knn_model, X, Y, putative_indices, banned_set, K_M, p,
                         if stat > Upsilon_star_plus]
     
     return unique_elements_l, max_p_val, updated_putative
+
+
 def IDE(Y_IDE, Y, X, Upsilon_i, Upsilon_star_plus, K_M, p, n_jobs, Knn_model, nX):
     """
     Iteratively equalize overdensities of Y with respect to X.
@@ -290,9 +292,8 @@ def get_indicies(thresh,res_new):
 # 3) SOAR!!!
 # ----------------------------------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={}):
-         
-         
+def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={},do_IDE=True):
+        
     print("-----------------------------------------------------------------")        
     print("Eagle...Soar!")
 #     print(r"""
@@ -456,84 +457,84 @@ def Soar(X, Y, K_M=500, p_ext=1e-5, n_jobs=10, stats_null={}, result_dict_in={})
 
         
     #%% Iterative Density Equalization:
-        
-    # Condition 1 
-    #
-    # If the p_ext is smaller then something we already computed then reuse it otherweise start from scratch
-    Condition_Y_1 = bool(np.any(result_dict['Upsilon_i_Y'] >= result_dict['Upsilon_star_plus'][p_ext]))
-    # Condition 2
-    #
-    # Do it only if there are points greater then the trashold
-    Condition_Y_2 = bool(p_ext >= min(result_dict['Upsilon_star_plus'].keys()) )
-    # Condition 3 
-    #
-    # Possible flag for completelly separated sets
-    auxx = (indices > X.shape[0])
-    auxx[:X.shape[0],:] = ~auxx[:X.shape[0],:]
-    auxx = auxx.astype(int)
-    # TEMP HARDCODED, AT LEAST 10% of opposite set in the KNN to proceed with IDE
-    Condition_3 = (auxx==0).sum()/(auxx==1).sum() > 0.1 # hardcoded for now
-    if not Condition_3:
-        print("-----------------------------------------------------------------")
-        display("!!! Significant global density difference !!!")
-        display("!!! IDE will not be computed !!!")
-        print("-----------------------------------------------------------------")
-    result_dict['Condition_3'] = Condition_3
-    #%%
-    if Condition_Y_1 & Condition_Y_2 & Condition_3:
-        print("-----------------------------------------------------------------")
-        print("Pruning via iterative density equalization (IDE)")
-        print("-----------------------------------------------------------------")  
-        display(Math(r"\text{Compute} \ \hat{\mathcal{Y}}^+"))
-        result_dict['Y_IDE']           = IDE(
-        result_dict['Y_IDE'],
-        Y, 
-        X, 
-        result_dict['Upsilon_i_Y'] , 
-        result_dict['Upsilon_star_plus'][p_ext],
-        K_M,
-        p,
-        n_jobs,
-        Knn_model,
-        nX
-        )
-        display("DONE!")      
-    #%%
-        
-    # Condition 1 
-    #
-    # If the p_ext is smaller then something we already computed then reuse it otherweise start from scratch
-    Condition_X_1 = bool(np.any(result_dict['Upsilon_i_X'] >= result_dict['Upsilon_star_minus'][p_ext]))
-    # Condition 2
-    #
-    # Do it only if there are points greater then the trashold
-    Condition_X_2 = bool(p_ext >= min(result_dict['Upsilon_star_minus'].keys()) )
-    # Condition 3 
-    #
-    # Possible flag for completelly separated sets
-    #TBA
-    if Condition_X_1 & Condition_X_2 & Condition_3:
+    if do_IDE:
+        # Condition 1 
+        #
+        # If the p_ext is smaller then something we already computed then reuse it otherweise start from scratch
+        Condition_Y_1 = bool(np.any(result_dict['Upsilon_i_Y'] >= result_dict['Upsilon_star_plus'][p_ext]))
+        # Condition 2
+        #
+        # Do it only if there are points greater then the trashold
+        Condition_Y_2 = bool(p_ext >= min(result_dict['Upsilon_star_plus'].keys()) )
+        # Condition 3 
+        #
+        # Possible flag for completelly separated sets
+        auxx = (indices > X.shape[0])
+        auxx[:X.shape[0],:] = ~auxx[:X.shape[0],:]
+        auxx = auxx.astype(int)
+        # TEMP HARDCODED, AT LEAST 10% of opposite set in the KNN to proceed with IDE
+        Condition_3 = (auxx==0).sum()/(auxx==1).sum() > 0.1 # hardcoded for now
+        if not Condition_3:
+            print("-----------------------------------------------------------------")
+            display("!!! Significant global density difference !!!")
+            display("!!! IDE will not be computed !!!")
+            print("-----------------------------------------------------------------")
+        result_dict['Condition_3'] = Condition_3
+        #%%
+        if Condition_Y_1 & Condition_Y_2 & Condition_3:
+            print("-----------------------------------------------------------------")
+            print("Pruning via iterative density equalization (IDE)")
+            print("-----------------------------------------------------------------")  
+            display(Math(r"\text{Compute} \ \hat{\mathcal{Y}}^+"))
+            result_dict['Y_IDE']           = IDE(
+            result_dict['Y_IDE'],
+            Y, 
+            X, 
+            result_dict['Upsilon_i_Y'] , 
+            result_dict['Upsilon_star_plus'][p_ext],
+            K_M,
+            p,
+            n_jobs,
+            Knn_model,
+            nX
+            )
+            display("DONE!")      
+        #%%
+            
+        # Condition 1 
+        #
+        # If the p_ext is smaller then something we already computed then reuse it otherweise start from scratch
+        Condition_X_1 = bool(np.any(result_dict['Upsilon_i_X'] >= result_dict['Upsilon_star_minus'][p_ext]))
+        # Condition 2
+        #
+        # Do it only if there are points greater then the trashold
+        Condition_X_2 = bool(p_ext >= min(result_dict['Upsilon_star_minus'].keys()) )
+        # Condition 3 
+        #
+        # Possible flag for completelly separated sets
+        #TBA
+        if Condition_X_1 & Condition_X_2 & Condition_3:
 
-        display(Math(r"\text{Compute} \ \hat{\mathcal{X}}^+"))
-        result_dict['X_IDE']           = IDE(
-        result_dict['X_IDE'],
-        X, 
-        Y, 
-        result_dict['Upsilon_i_X'] , 
-        result_dict['Upsilon_star_minus'][p_ext],
-        K_M,
-        1-p,
-        n_jobs,
-        Knn_model,
-        nX
-        )
-        display("DONE!")         
-#%%     get The Pruned Sets
-    if result_dict['Y_IDE']:
-        result_dict['Y_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_plus'][p_ext],result_dict['Y_IDE']) }
+            display(Math(r"\text{Compute} \ \hat{\mathcal{X}}^+"))
+            result_dict['X_IDE']           = IDE(
+            result_dict['X_IDE'],
+            X, 
+            Y, 
+            result_dict['Upsilon_i_X'] , 
+            result_dict['Upsilon_star_minus'][p_ext],
+            K_M,
+            1-p,
+            n_jobs,
+            Knn_model,
+            nX
+            )
+            display("DONE!")         
+    #%%     get The Pruned Sets
+        if result_dict['Y_IDE']:
+            result_dict['Y_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_plus'][p_ext],result_dict['Y_IDE']) }
 
-    if result_dict['X_IDE']:
-        result_dict['X_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_minus'][p_ext],result_dict['X_IDE']) }
+        if result_dict['X_IDE']:
+            result_dict['X_Pruned']    = {p_ext:get_indicies(result_dict['Upsilon_star_minus'][p_ext],result_dict['X_IDE']) }
 
     return result_dict, stats_null
 
