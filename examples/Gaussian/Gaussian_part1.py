@@ -15,7 +15,10 @@ import seaborn as sns
 import sys
 module_path = '../../eagleeye'
 sys.path.append(module_path)
-import EagleEye_v7
+import EagleEye
+from utils_EE import compute_the_null, partitioning_function
+
+
 import pickle
 
 # Custom plotting settings
@@ -145,32 +148,35 @@ def generate_gaussian_mixture_flower(central_points=10000,
     
     return data
 
+#%% EagleEye hyperparameters
+
+p       = .5
+
+K_M     = 500
+
+p_ext   = 1e-5
+
+n_jobs  = 10
+#%%
+stats_null                     = compute_the_null(p=p, K_M=K_M)
 #%%
 
-# define the null 
-K_M                   = 500
-tot_samples           = 10000
-stats_null            = EagleEye_v7.get_stats_null(tot_samples,tot_samples,K_M)
-
-
-#%%
-
-num_dimensions=10
 contamination_sizes=[1000, 750, 500, 250, 150, 70]
-CRITICAL_QUANTILES    = [ 1-1E-6 ]
-NUM_CORES             = 10
 
 results_10k = {
 "Torous": {
-    i: {"len_IE_extra": None, "len_From_test": None,"Upsilon_star": None}
+    i: {"len_Pruned": None, "len_Repechaged": None,"Upsilon_star": None}
     for i in contamination_sizes
 },
 "Gaussian": {
-    i: {"len_IE_extra": None, "len_From_test": None,"Upsilon_star": None}
+    i: {"len_Pruned": None, "len_Repechaged": None,"Upsilon_star": None}
     for i in contamination_sizes
 }
 }
 
+#%%
+num_dimensions = 10
+tot_samples = 10000
 
 #%%
 
@@ -187,50 +193,43 @@ for contamination_size in contamination_sizes:
     cstd1 = sigma_a
     covariances = [np.eye(dim), sigma_a**2 * np.eye(dim), cstd2 * np.eye(dim)]
 
-    reference_data =  generate_gaussian_mixture_flower(central_points=10000, petal_points=0, n_petals=6, dim=10, radius=5, random_seed=17)
+    X =  generate_gaussian_mixture_flower(central_points=10000, petal_points=0, n_petals=6, dim=10, radius=5, random_seed=17)
         
 
     test_data_G = np.concatenate((generate_gaussian_mixture_flower(central_points=10000-contamination_size, petal_points=0, n_petals=6, dim=10, radius=5, random_seed=1), generate_gaussian_mixture(dim, sizes, means, covariances)))
     test_data_T = np.concatenate((generate_gaussian_mixture_flower(central_points=10000-contamination_size, petal_points=0, n_petals=6, dim=10, radius=5, random_seed=2), generate_data_with_torus_anomalies(num_dimensions=dim, cluster_sizes=sizes, anomaly_radius=sigma_a, shift_factors=sig)))
     
     
+    result_dict, stats_null = EagleEye.Soar(X, test_data_T, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 
-
-
-    VALIDATION            = reference_data.shape[0]
-
-
-    result_dictionary     = EagleEye_v7.Soar(
-        reference_data, test_data_T, stats_null =stats_null, result_dict_in = {}, K_M = K_M, critical_quantiles = CRITICAL_QUANTILES,
-        num_cores=NUM_CORES, validation=VALIDATION, partition_size=100, reverse=False )
-
-    #%% # Clustering
-    qt=0
-    clusters = EagleEye_v7.partitian_function(reference_data,test_data_T,result_dictionary,result_dictionary['Upsilon_star_plus'][qt], result_dictionary['Upsilon_star_minus'][qt],K_M=K_M, reverse=False )
-    #%% # Creation of the dictionaries
-    IV_IE_dict = EagleEye_v7.IV_IE_get_dict(clusters,result_dictionary,[CRITICAL_QUANTILES[qt]],test_data_T,reference_data, reverse=False )
-
+    #%% Cluter the Putative anomalies
     
- #%%   
-    result_dictionary_G     = EagleEye_v7.Soar(
-        reference_data, test_data_G, stats_null =stats_null, result_dict_in = {}, K_M = K_M, critical_quantiles = CRITICAL_QUANTILES,
-        num_cores=NUM_CORES, validation=VALIDATION, partition_size=100, reverse=False )
+    clusters = partitioning_function(X,test_data_T,result_dict,p_ext=p_ext,Z=2.65 )
+    
+    #%% Repêchage
+    
+    EE_book = EagleEye.Repechage(X,test_data_T,result_dict,clusters,p_ext=1e-5)
+    
 
-    #%% # Clustering
-    qt=0
-    clusters_G = EagleEye_v7.partitian_function(reference_data,test_data_G,result_dictionary_G,result_dictionary_G['Upsilon_star_plus'][qt], result_dictionary_G['Upsilon_star_minus'][qt],K_M=K_M, reverse=False)
-    #%% # Creation of the dictionaries
-    IV_IE_dict_G = EagleEye_v7.IV_IE_get_dict(clusters_G,result_dictionary_G,[CRITICAL_QUANTILES[qt]],test_data_G,reference_data, reverse=False)
+    result_dict_G, stats_null = EagleEye.Soar(X, test_data_G, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
+
+    #%% Cluter the Putative anomalies
+    
+    clusters_G = partitioning_function(X,test_data_G,result_dict,p_ext=p_ext,Z=2.65 )
+    
+    #%% Repêchage
+    
+    EE_book_G = EagleEye.Repechage(X,test_data_G,result_dict,clusters,p_ext=1e-5)
+    
 
         
-    results_10k['Torous'][contamination_size]['len_From_test'] = sum(len(IV_IE_dict['OVER_clusters'][clust]['From_test']) if IV_IE_dict['OVER_clusters'][clust]['From_test'] is not None else 0 for clust in range(len(IV_IE_dict['OVER_clusters'])))
-    results_10k['Torous'][contamination_size]['len_IE_extra']  = sum(len(IV_IE_dict['OVER_clusters'][clust]['IE_extra']) if IV_IE_dict['OVER_clusters'][clust]['IE_extra'] is not None else 0 for clust in range(len(IV_IE_dict['OVER_clusters'])))
-    results_10k['Torous'][contamination_size]['Upsilon_star']  = result_dictionary['Upsilon_star_plus'][qt]
+    results_10k['Torous'][contamination_size]['len_Repechaged'] = sum(len(EE_book['Y_OVER_clusters'][clust]['Repechaged']) if EE_book['Y_OVER_clusters'][clust]['Repechaged'] is not None else 0 for clust in range(len(EE_book['Y_OVER_clusters'])))
+    results_10k['Torous'][contamination_size]['len_Pruned']  = sum(len(EE_book['Y_OVER_clusters'][clust]['Pruned']) if EE_book['Y_OVER_clusters'][clust]['Pruned'] is not None else 0 for clust in range(len(EE_book['Y_OVER_clusters'])))
+    results_10k['Torous'][contamination_size]['Upsilon_star']  = result_dict['Upsilon_star_plus'][result_dict['p_ext']]
 
-    results_10k['Gaussian'][contamination_size]['len_From_test'] = sum(len(IV_IE_dict_G['OVER_clusters'][clust]['From_test']) if IV_IE_dict_G['OVER_clusters'][clust]['From_test'] is not None else 0 for clust in range(len(IV_IE_dict_G['OVER_clusters'])))
-    results_10k['Gaussian'][contamination_size]['len_IE_extra'] = sum(len(IV_IE_dict_G['OVER_clusters'][clust]['IE_extra']) if IV_IE_dict_G['OVER_clusters'][clust]['IE_extra'] is not None else 0 for clust in range(len(IV_IE_dict_G['OVER_clusters'])))
-    results_10k['Gaussian'][contamination_size]['Upsilon_star'] = result_dictionary_G['Upsilon_star_plus'][qt]
-
+    results_10k['Gaussian'][contamination_size]['len_Repechaged'] = sum(len(EE_book_G['Y_OVER_clusters'][clust]['Repechaged']) if EE_book_G['Y_OVER_clusters'][clust]['Repechaged'] is not None else 0 for clust in range(len(EE_book_G['Y_OVER_clusters'])))
+    results_10k['Gaussian'][contamination_size]['len_Pruned'] = sum(len(EE_book_G['Y_OVER_clusters'][clust]['Pruned']) if EE_book_G['Y_OVER_clusters'][clust]['Pruned'] is not None else 0 for clust in range(len(EE_book_G['Y_OVER_clusters'])))
+    results_10k['Gaussian'][contamination_size]['Upsilon_star'] = result_dict['Upsilon_star_plus'][result_dict['p_ext']]
 
 
 
@@ -243,26 +242,17 @@ print("Result saved to results_10k_flower.pkl")
 
 #%%
 
-
-# define the null 
-K_M                   = 500
-tot_samples_100k           = 100000
-stats_null_100k            = EagleEye_v7.get_stats_null(tot_samples_100k,tot_samples_100k,K_M)
-
+# num_dimensions = 10
+tot_samples_100k = 100000
 #%%
-
-num_dimensions=10
-contamination_sizes=[1000, 750, 500, 250, 150, 70]
-CRITICAL_QUANTILES    = [ 1-1E-6 ]
-NUM_CORES             = 10
 
 results_100k = {
 "Torous": {
-    i: {"len_IE_extra": None, "len_From_test": None,"Upsilon_star": None}
+    i: {"len_Pruned": None, "len_Repechaged": None,"Upsilon_star": None}
     for i in contamination_sizes
 },
 "Gaussian": {
-    i: {"len_IE_extra": None, "len_From_test": None,"Upsilon_star": None}
+    i: {"len_Pruned": None, "len_Repechaged": None,"Upsilon_star": None}
     for i in contamination_sizes
 }
 }
@@ -280,7 +270,7 @@ for contamination_size in contamination_sizes:
     cstd1 = sigma_a
     covariances = [np.eye(dim), sigma_a**2 * np.eye(dim), cstd2 * np.eye(dim)]
 
-    reference_data =  generate_gaussian_mixture_flower(central_points=10000, petal_points=15000, n_petals=6, dim=10, radius=5, random_seed=17)
+    X =  generate_gaussian_mixture_flower(central_points=10000, petal_points=15000, n_petals=6, dim=10, radius=5, random_seed=17)
         
 
     test_data_G = np.concatenate((generate_gaussian_mixture_flower(central_points=10000-contamination_size, petal_points=15000, n_petals=6, dim=10, radius=5, random_seed=11), generate_gaussian_mixture(dim, sizes, means, covariances)))
@@ -288,47 +278,42 @@ for contamination_size in contamination_sizes:
     
     
 
-    VALIDATION            = reference_data.shape[0]
+    result_dict, stats_null = EagleEye.Soar(X, test_data_T, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 
-
-    result_dictionary     = EagleEye_v7.Soar(
-        reference_data, test_data_T, stats_null =stats_null_100k, result_dict_in = {}, K_M = K_M, critical_quantiles = CRITICAL_QUANTILES,
-        num_cores=NUM_CORES, validation=VALIDATION, partition_size=100, reverse=False )
-
-    #%% # Clustering
-    qt=0
-    clusters = EagleEye_v7.partitian_function(reference_data,test_data_T,result_dictionary,result_dictionary['Upsilon_star_plus'][qt], result_dictionary['Upsilon_star_minus'][qt],K_M=K_M, reverse=False)
-    #%% # Creation of the dictionaries
-    IV_IE_dict = EagleEye_v7.IV_IE_get_dict(clusters,result_dictionary,[CRITICAL_QUANTILES[qt]],test_data_T,reference_data, reverse=False)
-
+    #%% Cluter the Putative anomalies
     
+    clusters = partitioning_function(X,test_data_T,result_dict,p_ext=p_ext,Z=2.65 )
     
-    result_dictionary_G     = EagleEye_v7.Soar(
-        reference_data, test_data_G, stats_null =stats_null_100k, result_dict_in = {}, K_M = K_M, critical_quantiles = CRITICAL_QUANTILES,
-        num_cores=NUM_CORES, validation=VALIDATION, partition_size=100, reverse=False )
+    #%% Repêchage
+    
+    EE_book = EagleEye.Repechage(X,test_data_T,result_dict,clusters,p_ext=1e-5)
+    
 
-    #%% # Clustering
-    qt=0
-    clusters_G = EagleEye_v7.partitian_function(reference_data,test_data_G,result_dictionary_G,result_dictionary_G['Upsilon_star_plus'][qt], result_dictionary_G['Upsilon_star_minus'][qt],K_M=K_M, reverse=False)
-    #%% # Creation of the dictionaries
-    IV_IE_dict_G = EagleEye_v7.IV_IE_get_dict(clusters_G,result_dictionary_G,[CRITICAL_QUANTILES[qt]],test_data_G,reference_data, reverse=False)
+    result_dict_G, stats_null = EagleEye.Soar(X, test_data_G, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 
+    #%% Cluter the Putative anomalies
+    
+    clusters_G = partitioning_function(X,test_data_G,result_dict,p_ext=p_ext,Z=2.65 )
+    
+    #%% Repêchage
+    
+    EE_book_G = EagleEye.Repechage(X,test_data_G,result_dict,clusters,p_ext=1e-5)
+    
         
-    results_100k['Torous'][contamination_size]['len_From_test'] = sum(len(IV_IE_dict['OVER_clusters'][clust]['From_test']) if IV_IE_dict['OVER_clusters'][clust]['From_test'] is not None else 0 for clust in range(len(IV_IE_dict['OVER_clusters'])))
-    results_100k['Torous'][contamination_size]['len_IE_extra']  = sum(len(IV_IE_dict['OVER_clusters'][clust]['IE_extra']) if IV_IE_dict['OVER_clusters'][clust]['IE_extra'] is not None else 0 for clust in range(len(IV_IE_dict['OVER_clusters'])))
-    results_100k['Torous'][contamination_size]['Upsilon_star']  = result_dictionary['Upsilon_star_plus'][qt]
+    results_100k['Torous'][contamination_size]['len_Repechaged'] = sum(len(EE_book['Y_OVER_clusters'][clust]['Repechaged']) if EE_book['Y_OVER_clusters'][clust]['Repechaged'] is not None else 0 for clust in range(len(EE_book['Y_OVER_clusters'])))
+    results_100k['Torous'][contamination_size]['len_Pruned']  = sum(len(EE_book['Y_OVER_clusters'][clust]['Pruned']) if EE_book['Y_OVER_clusters'][clust]['Pruned'] is not None else 0 for clust in range(len(EE_book['Y_OVER_clusters'])))
+    results_100k['Torous'][contamination_size]['Upsilon_star']  = result_dict['Upsilon_star_plus'][result_dict['p_ext']]
 
-    results_100k['Gaussian'][contamination_size]['len_From_test'] = sum(len(IV_IE_dict_G['OVER_clusters'][clust]['From_test']) if IV_IE_dict_G['OVER_clusters'][clust]['From_test'] is not None else 0 for clust in range(len(IV_IE_dict_G['OVER_clusters'])))
-    results_100k['Gaussian'][contamination_size]['len_IE_extra'] = sum(len(IV_IE_dict_G['OVER_clusters'][clust]['IE_extra']) if IV_IE_dict_G['OVER_clusters'][clust]['IE_extra'] is not None else 0 for clust in range(len(IV_IE_dict_G['OVER_clusters'])))
-    results_100k['Gaussian'][contamination_size]['Upsilon_star'] = result_dictionary_G['Upsilon_star_plus'][qt]
-
+    results_100k['Gaussian'][contamination_size]['len_Repechaged'] = sum(len(EE_book_G['Y_OVER_clusters'][clust]['Repechaged']) if EE_book_G['Y_OVER_clusters'][clust]['Repechaged'] is not None else 0 for clust in range(len(EE_book_G['Y_OVER_clusters'])))
+    results_100k['Gaussian'][contamination_size]['len_Pruned'] = sum(len(EE_book_G['Y_OVER_clusters'][clust]['Pruned']) if EE_book_G['Y_OVER_clusters'][clust]['Pruned'] is not None else 0 for clust in range(len(EE_book_G['Y_OVER_clusters'])))
+    results_100k['Gaussian'][contamination_size]['Upsilon_star'] = result_dict['Upsilon_star_plus'][result_dict['p_ext']]
 
 #%%
 
-TFRep_10k = [results_10k['Torous'][cluster]['len_From_test'] for cluster in contamination_sizes]
-GFRep_10k = [results_10k['Gaussian'][cluster]['len_From_test'] for cluster in contamination_sizes]
-TFPru_10k = [results_10k['Torous'][cluster]['len_IE_extra'] for cluster in contamination_sizes]
-GFPru_10k = [results_10k['Gaussian'][cluster]['len_IE_extra'] for cluster in contamination_sizes]
+TFRep_10k = [results_10k['Torous'][cluster]['len_Repechaged'] for cluster in contamination_sizes]
+GFRep_10k = [results_10k['Gaussian'][cluster]['len_Repechaged'] for cluster in contamination_sizes]
+TFPru_10k = [results_10k['Torous'][cluster]['len_Pruned'] for cluster in contamination_sizes]
+GFPru_10k = [results_10k['Gaussian'][cluster]['len_Pruned'] for cluster in contamination_sizes]
 
 plt.figure()
 plt.scatter(contamination_sizes, TFPru_10k)
@@ -351,10 +336,10 @@ plt.xlabel('n_anomaly')
 plt.ylabel('n_repechage')
 #%%
 
-TFRep_100k = [results_100k['Torous'][cluster]['len_From_test'] for cluster in contamination_sizes]
-GFRep_100k = [results_100k['Gaussian'][cluster]['len_From_test'] for cluster in contamination_sizes]
-TFPru_100k = [results_100k['Torous'][cluster]['len_IE_extra'] for cluster in contamination_sizes]
-GFPru_100k = [results_100k['Gaussian'][cluster]['len_IE_extra'] for cluster in contamination_sizes]
+TFRep_100k = [results_100k['Torous'][cluster]['len_Repechaged'] for cluster in contamination_sizes]
+GFRep_100k = [results_100k['Gaussian'][cluster]['len_Repechaged'] for cluster in contamination_sizes]
+TFPru_100k = [results_100k['Torous'][cluster]['len_Pruned'] for cluster in contamination_sizes]
+GFPru_100k = [results_100k['Gaussian'][cluster]['len_Pruned'] for cluster in contamination_sizes]
 
 plt.figure()
 plt.scatter(contamination_sizes, TFPru_100k)

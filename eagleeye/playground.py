@@ -9,7 +9,7 @@ Created on Fri Mar  7 09:13:10 2025
 
 import numpy as np
 import matplotlib.pyplot as plt
-import EagleEye_v17
+import EagleEye
 # import time
 
 #%% Generate the data
@@ -34,23 +34,23 @@ n_jobs  = 10
 
 #%% Get the null
 
-from utils_EE_v17 import compute_the_null
+from utils_EE import compute_the_null
 stats_null                     = compute_the_null(p=p, K_M=K_M)
 
 #%% Eagle Soar!
 
 # t = time.time()
-result_dict, stats_null = EagleEye_v17.Soar(X, Y, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
+result_dict, stats_null = EagleEye.Soar(X, Y, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 # elapsed17alt = time.time() - t
 # print(f'Elapsed time: {elapsed17alt} seconds')
 
 #%% Cluter the Putative anomalies
-from utils_EE_v17 import partitioning_function
+from utils_EE import partitioning_function
 clusters = partitioning_function(X,Y,result_dict,p_ext=p_ext,Z=2.65 )
 
 #%% Repêchage
 
-EE_book = EagleEye_v17.Repechage(X,Y,result_dict,clusters,p_ext=p_ext)
+EE_book = EagleEye.Repechage(X,Y,result_dict,clusters,p_ext=p_ext)
 
 
 #%% Visualizations 

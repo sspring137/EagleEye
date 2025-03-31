@@ -191,7 +191,7 @@ def plot_third_subplot(ax,
 
         # Add a vertical dashed red line at the critical threshold.
         ax.axvline(x=Upsilon_star_plus, color='red', linestyle='--', linewidth=2,
-                   label=r'Critical threshold:$\mathcal{X}_+^{*}$')
+                   label=r'Critical threshold:$\mathbf{\Upsilon}_+^{*}$')
     else:
     
     
@@ -219,7 +219,7 @@ def plot_third_subplot(ax,
 
         # Add a vertical dashed red line at the critical threshold.
         ax.axvline(x=Upsilon_star_plus, color='red', linestyle='--', linewidth=2,
-                   label=r'Critical threshold:$\mathcal{Y}_+^{*}$')
+                   label=r'Critical threshold:$\mathbf{\Upsilon}_-^{*}$')
 
 
 
