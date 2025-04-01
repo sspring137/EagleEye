@@ -2,8 +2,7 @@
 # `EagleEye`: A general purpose density anomaly detection method
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14016472.svg)](https://doi.org/10.5281/zenodo.14016472)
-
-[![DOI](https://www.arxiv.org/abs/2503.23927)](https://www.arxiv.org/abs/2503.23927)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.23927-b31b1b.svg)](https://arxiv.org/abs/2503.23927)
 
 
 ![EagleEye](./examples/Tresette_v7/Fig2.png)
