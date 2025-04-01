@@ -3,8 +3,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14016472.svg)](https://doi.org/10.5281/zenodo.14016472)
 
-Detecting Localized Density Anomalies in Multivariate Data via Coin-Flip Statistics
-[![DOI]([https://www.arxiv.org/abs/2503.23927](https://www.arxiv.org/abs/2503.23927)
+[![DOI](https://www.arxiv.org/abs/2503.23927)](https://www.arxiv.org/abs/2503.23927)
 
 
 ![EagleEye](./examples/Tresette_v7/Fig2.png)
