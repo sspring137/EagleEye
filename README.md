@@ -5,7 +5,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2503.23927-b31b1b.svg)](https://arxiv.org/abs/2503.23927)
 
 
-![EagleEye](./examples/Tresette_v7/Fig2.jpg)
+![EagleEye](./examples/Tresette_v7/Fig2.png)
 <small>
 Above: Multimodal over-densities (red) and under-densities (purple) captured by $\texttt{EagleEye}$. 
 </small>
