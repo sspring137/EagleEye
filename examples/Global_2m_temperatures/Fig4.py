@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 
 # Make sure EagleEye is on your Python path
 sys.path.append('../../eagleeye')
-import EagleEye_v7
+import EagleEye
+from utils_EE import compute_the_null, partitioning_function
 
 # from Data_class1 import Data
 from IPython.display import display
@@ -75,7 +76,7 @@ def get_longitude_indices(center_deg, window_width_deg, discretization_step=2.5)
 
     return longi, window_size
 
-
+#%% Decembre Jannuary Febbruary
 
 data_name = "Air2m_northern_DJF"
 # Determine the season based on the file name
@@ -83,7 +84,8 @@ season = "Winter" if 'DJF' in data_name else "Summer"
 
 # Get the current working directory, which is where the notebook is running from
 current_script_path = os.path.dirname(__file__)
-# Constants
+
+# setup
 grid_discretization = [37, 144]
 scale = 360 / grid_discretization[1]
 lat_indices = range(13, 29 + 1)
@@ -91,7 +93,6 @@ filters = ["Lati_area", "Longi_Gaussian"]
 n_microstates = 180
 data_extension = ".npy"
 
-max_NLPval_NearNeigh_numb = []
 #%%!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 start = 90
 clusterss = np.zeros((37,144,4))
@@ -99,8 +100,29 @@ longiss   = []
 iloc=0
 start_day_offset = 0
 quantile_index = 0
-z_score_threshold = 1.65
+
+# needed for loading and filtering the climate datasets
 from Data_class1 import Data
+
+
+#%% EagleEye hyperparameters
+
+p       = .5
+
+K_M     = 100
+
+p_ext   = 1e-5
+
+n_jobs  = 10
+
+NN_for_plotting = 10
+
+# z_score_threshold = 1.65
+#%%
+stats_null                     = compute_the_null(p=p, K_M=K_M)
+
+#%%
+
 for center_longitude in [330, 340]:
 # Define the window width in degrees for filtering
     window_width = 60
@@ -144,92 +166,44 @@ for center_longitude in [330, 340]:
         * climate_data.scale_sqrt
     )
 
-    # General EagleEye parameters
-    validation_size = air2m_1951_1974.shape[0]
-    K_M = 100
-    NN_for_plotting = 10
-    CRITICAL_QUANTILES = [1 - 1e-4, 1 - 1e-5]
-    NUM_CORES = 10
-
 
 #%%
     # ========== Future Analysis (1999-2022) ==========
-    reference_data_future = air2m_1951_1974
-    test_data_future = air2m_1999_2022
+    X_future = air2m_1951_1974
+    Y_future = air2m_1999_2022
+    
+    result_dict, stats_null = EagleEye.Soar(X_future, Y_future, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 
-    # 1) SOAR detection
-    soar_result_future = EagleEye_v7.Soar(
-        reference_data_future,
-        test_data_future,
-        result_dict_in={},
-        K_M=K_M,
-        critical_quantiles=CRITICAL_QUANTILES,
-        num_cores=NUM_CORES,
-        validation=validation_size,
-        partition_size=100
-    )
-
-    # 2) Identify clusters
-    clusters_future = EagleEye_v7.partitian_function(
-        reference_data_future,
-        test_data_future,
-        soar_result_future,
-        soar_result_future['Upsilon_star_plus'][quantile_index],
-        soar_result_future['Upsilon_star_minus'][quantile_index],
-        K_M=K_M,
-        Z=z_score_threshold
-    )
-#%%
-    # 3) Derive the IV/IE dictionaries
-    iv_ie_dict_future = EagleEye_v7.IV_IE_get_dict(
-        clusters_future,
-        soar_result_future,
-        CRITICAL_QUANTILES[quantile_index],
-        test_data_future,
-        reference_data_future
-    )
-
+    #%% Cluter the Putative anomalies
     
-    # # get an index of max 
-    # list1 = seasonal_anomalies['DJF']['anomalies_numb_future_detr'][degree_to_longitude(center_longitude)]['indices']
-    # imax = np.where( NLPval==NLPval.max()  )[0][0]
-    # # imax = np.where( NLPval>26  )[0][3]
-    # list2 = list(neighbourhood_indexes[imax,np.where(binary_sequences_future[imax,:]==True)[0]].astype(int))
-    # # Initialize the result list
-    # intersections1 = [value for value in list1 if value in list2]
-    # display(len(intersections1))
-    # max_NLPval_NearNeigh_numb.append(len(intersections1))
-    imax=np.where(soar_result_future['stats']['Upsilon_i_plus']==soar_result_future['stats']['Upsilon_i_plus'].max())[0]
+    clusters = partitioning_function(X_future,Y_future,result_dict,p_ext=p_ext,Z=2.65 )
     
-    import From_data_to_binary_post
-    binary_sequences_pp, neighborhood_idx_pp = From_data_to_binary_post.create_binary_array_cdist_post_subset(
-        test_data_future,
-        reference_data_future,
-        imax,
-        num_neighbors=K_M ,
-        num_cores=10,
-        validation=None,
-        partition_size=100
-    )
+    #%% Repêchage
     
-    list_a1 = neighborhood_idx_pp[0][binary_sequences_pp[0].astype(bool)]
-    
-    list_tot = [x for x in list_a1[:NN_for_plotting] if x in iv_ie_dict_future['OVER_clusters'][0]['From_test']]
-    
+    EE_book = EagleEye.Repechage(X_future,Y_future,result_dict,clusters,p_ext=1e-5)
 
 
+    imax=result_dict['Upsilon_i_Y'].argmax()
+    
+    neighborhood_idx_pp = result_dict['Knn_model'].kneighbors(Y_future[imax, :][np.newaxis,:])[1]
+    nX = X_future.shape[0]
+    
+    list_a1 = neighborhood_idx_pp[neighborhood_idx_pp>=nX]-nX
+    
+    # list of narest neigh of the max exceeding the crit tr Upsilon_+^*
+    list_tot = [x for x in list_a1[:NN_for_plotting] if x in EE_book['Y_OVER_clusters'][0]['Repechaged']]
+    
     clusterss[ :,:, iloc] = climate_data.AIR2M_filtered[90 + 2130 * 2:, :, :][list_tot ].mean(axis=0)
     iloc=iloc+1
 
 
-
+#%%
+# June July August
 data_name = "Air2m_northern_JJA"
 
 # Determine the season based on the file name
 season = "Winter" if 'DJF' in data_name else "Summer"
 
-# Get the current directory of the script
-# current_script_path = Path(os.getcwd())
 # Constants
 grid_discretization = [37, 144]
 scale = 360 / grid_discretization[1]
@@ -239,7 +213,6 @@ n_microstates = 180
 data_extension = ".npy"
 
 start = 90
-# clusterss = np.zeros((37,144,4))
 longiss   = []
 # iloc=0
 from Data_class1 import Data
@@ -286,78 +259,29 @@ for center_longitude in [340, 180]:
         * climate_data.scale_sqrt
     )
 
-    # General EagleEye parameters
-    validation_size = air2m_1951_1974.shape[0]
-    K_M = 100
-    CRITICAL_QUANTILES = [1 - 1e-4, 1 - 1e-5]
-    NUM_CORES = 10
-
-
 #%%
     # ========== Future Analysis (1999-2022) ==========
-    reference_data_future = air2m_1951_1974
-    test_data_future = air2m_1999_2022
+    X_future = air2m_1951_1974
+    Y_future = air2m_1999_2022
+    result_dict, stats_null = EagleEye.Soar(X_future, Y_future, K_M=K_M, p_ext=p_ext, n_jobs=n_jobs, stats_null=stats_null, result_dict_in={})
 
-    # 1) SOAR detection
-    soar_result_future = EagleEye_v7.Soar(
-        reference_data_future,
-        test_data_future,
-        result_dict_in={},
-        K_M=K_M,
-        critical_quantiles=CRITICAL_QUANTILES,
-        num_cores=NUM_CORES,
-        validation=validation_size,
-        partition_size=100
-    )
-
-    # 2) Identify clusters
-    clusters_future = EagleEye_v7.partitian_function(
-        reference_data_future,
-        test_data_future,
-        soar_result_future,
-        soar_result_future['Upsilon_star_plus'][quantile_index],
-        soar_result_future['Upsilon_star_minus'][quantile_index],
-        K_M=K_M,
-        Z=z_score_threshold
-    )
-#%%
-    # 3) Derive the IV/IE dictionaries
-    iv_ie_dict_future = EagleEye_v7.IV_IE_get_dict(
-        clusters_future,
-        soar_result_future,
-        CRITICAL_QUANTILES[quantile_index],
-        test_data_future,
-        reference_data_future
-    )
-
+    #%% Cluter the Putative anomalies
     
+    clusters = partitioning_function(X_future,Y_future,result_dict,p_ext=p_ext,Z=2.65 )
+    
+    #%% Repêchage
+    
+    EE_book = EagleEye.Repechage(X_future,Y_future,result_dict,clusters,p_ext=1e-5)
+
     # # get an index of max 
-    # list1 = seasonal_anomalies['DJF']['anomalies_numb_future_detr'][degree_to_longitude(center_longitude)]['indices']
-    # imax = np.where( NLPval==NLPval.max()  )[0][0]
-    # # imax = np.where( NLPval>26  )[0][3]
-    # list2 = list(neighbourhood_indexes[imax,np.where(binary_sequences_future[imax,:]==True)[0]].astype(int))
-    # # Initialize the result list
-    # intersections1 = [value for value in list1 if value in list2]
-    # display(len(intersections1))
-    # max_NLPval_NearNeigh_numb.append(len(intersections1))
-    imax=np.where(soar_result_future['stats_reverse']['Upsilon_i_plus']==soar_result_future['stats_reverse']['Upsilon_i_plus'].max())[0]
+    imax=result_dict['Upsilon_i_X'].argmax()
     
-    import From_data_to_binary_post
-    binary_sequences_pp, neighborhood_idx_pp = From_data_to_binary_post.create_binary_array_cdist_post_subset(
-        reference_data_future,
-        test_data_future,
-        imax,
-        num_neighbors=K_M ,
-        num_cores=10,
-        validation=None,
-        partition_size=100
-    )
-    
-    list_a1 = neighborhood_idx_pp[0][binary_sequences_pp[0].astype(bool)]
-    
-    list_tot = [x for x in list_a1[:NN_for_plotting] if x in iv_ie_dict_future['UNDER_clusters'][0]['From_ref']]
-    
+    neighborhood_idx_pp = result_dict['Knn_model'].kneighbors(X_future[imax, :][np.newaxis,:])[1]
+    nX = X_future.shape[0]
 
+    list_a1 = neighborhood_idx_pp[neighborhood_idx_pp<nX]
+    # list of narest neigh of the max exceeding the crit tr Upsilon_-^*
+    list_tot = [x for x in list_a1[:NN_for_plotting] if x in EE_book['X_OVER_clusters'][0]['Repechaged']]
 
     clusterss[ :,:, iloc] = climate_data.AIR2M_filtered[start_day_offset : 2130 + start_day_offset, :, :][list_tot ].mean(axis=0)
     iloc=iloc+1
@@ -369,7 +293,7 @@ clusterss[clusterss>10]=10
 clusterss[clusterss<-10]=-10
 #%%
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from plot_utils import (get_longitude_indices, visualize_microstate_mean_AIR2M,
@@ -442,12 +366,8 @@ ax_air_3 = fig.add_subplot(gs[2, 2])
 ax_air_4 = fig.add_subplot(gs[2, 3])
 air_axes = [ax_air_1, ax_air_2, ax_air_3, ax_air_4]
 
-# For demonstration purposes, create dummy Air2m data for microstate maps.
-# Replace these with your actual arrays (e.g. clusterss[:,:,i]).
-# tbp_dummy = [np.random.randn(37, 144) for _ in range(4)]
 tbp_dummy = [clusterss[:,:,ij] for ij in range(4)]
 
-# Choose example longitude windows for each panel.
 longi_dummy = []
 for center in [340, 180, 330, 340]:
     longi, _ = get_longitude_indices(center, 60)
@@ -484,10 +404,9 @@ sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 sm.set_array([])  # This dummy array is needed for the colorbar
 
 # Create a new axis below the current plots for the colorbar.
-# The list [left, bottom, width, height] defines the position of the new axis in figure coordinates.
 cbar_ax = fig.add_axes([0.1, 0.05, 0.8, 0.03])
 
-# Create the colorbar using the dummy ScalarMappable.
+# Create the colorbar
 cbar = fig.colorbar(sm, cax=cbar_ax, orientation='horizontal')
 
 # Add a label to the colorbar.
