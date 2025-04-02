@@ -191,7 +191,7 @@ def plot_third_subplot(ax,
 
         # Add a vertical dashed red line at the critical threshold.
         ax.axvline(x=Upsilon_star_plus, color='red', linestyle='--', linewidth=2,
-                   label=r'Critical threshold:$\mathbf{\Upsilon}_+^{*}$')
+                   label=r'Critical threshold:$\mathbf{\Upsilon}_-^{*}$')
     else:
     
     
@@ -219,7 +219,7 @@ def plot_third_subplot(ax,
 
         # Add a vertical dashed red line at the critical threshold.
         ax.axvline(x=Upsilon_star_plus, color='red', linestyle='--', linewidth=2,
-                   label=r'Critical threshold:$\mathbf{\Upsilon}_-^{*}$')
+                   label=r'Critical threshold:$\mathbf{\Upsilon}_+^{*}$')
 
 
 
@@ -620,14 +620,14 @@ def plot_37_article_vanishing(
 
     # Plot background and contaminations on ax0a
     ax0a.scatter(what_ref[:,0], what_ref[:,1], what_ref[:,2], 
-                 c='lightgray', s=.1, alpha=0.2, label=r'Background')
+                 c='lightgray', s=3, alpha=0.2, label=r'Background')
     ax0a.scatter(points_reference_ball[:,0], points_reference_ball[:,1], points_reference_ball[:,2], 
-                 c='darkorange', s=15, alpha=1, label="Reference Dataset (within Sphere)")
+                 c='darkmagenta', s=15, alpha=1, label="Reference Dataset (within Sphere)")
     ax0a.scatter(points_test_ball[:,0], points_test_ball[:,1], points_test_ball[:,2], 
-                 c='darkmagenta', s=15, alpha=1, label="Test Dataset (within Sphere)")
+                 c='darkorange', s=15, alpha=1, label="Test Dataset (within Sphere)")
     
     # Add legend to one of the axes (using ax0)
-    ax0.legend(markerscale=2)
+    ax0a.legend(markerscale=2)
 
     # Plot the first subplot using the helper function
     plot_first_subplot(ax0, 
@@ -729,7 +729,7 @@ def plot_37_article_vanishing(
         var_legend='X',
         vlll = -33
     )
-    
+    ax3.set_xlim([1.5, 100])
     # Adjust layout and add annotations to each subplot
     plt.tight_layout()
     
@@ -749,7 +749,8 @@ def plot_37_article_vanishing(
     #              fontsize=21, fontweight='bold', va='top', ha='left')
     
     # Save the figure using the provided file name and display it
-    plt.savefig(save_name, format='pdf')
+    
+    plt.savefig(save_name, format='jpg')
     plt.show()
 
 
