@@ -5,7 +5,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2503.23927-b31b1b.svg)](https://arxiv.org/abs/2503.23927)
 
 
-![EagleEye](./examples/Tresette_v7/Fig2.png)
+![EagleEye Demo](examples/Basic_usage/putative_threshold_with_histogram.gif)
 <small>
 Above: Multimodal over-densities (red) and under-densities (purple) captured by $\texttt{EagleEye}$. 
 </small>
@@ -23,8 +23,8 @@ EagleEye has several key features:
 ## Examples
 The `examples/` directory contains code to regenerate the figures from the main text and supplementary information of the paper. 
 
-![EagleEye Demo](examples/Basic_usage/putative_threshold_with_histogram.gif)
 
+![EagleEye](./examples/Tresette_v7/Fig2.png)
 
 ## Licensing
 
