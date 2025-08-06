@@ -26,6 +26,20 @@ The `examples/` directory contains code to regenerate the figures from the main 
 
 ![EagleEye](./examples/Tresette_v7/Fig2.png)
 
+## Tested Environments
+
+This package has been verified on the following setup:
+
+| Component        | Version  |
+| ---------------- | -------- |
+| **Python**       | 3.11.11  |
+| **numpy**        | 1.26.4   |
+| **scipy**        | 1.15.2   |
+| **scikit-learn** | 1.6.1    |
+| **dadapy**       | 0.3.2    |
+| **matplotlib**   | 3.10.1   |
+| **IPython**      | 8.30.0   |
+
 ## Licensing
 
 EagleEye is available under a dual licensing model:
