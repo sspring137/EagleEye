@@ -1,130 +1,118 @@
-# Comparing EagleEye and various two-sample tests
-In `2samp_tests.ipynb`, we provide a few examples examples to demosntrate where one would like to use EE instead of an MLP,BDT,wavelet, or vanilla kNN classifier. 
+# Comparing EagleEye and Various Two-Sample Tests
 
--------
+In `2samp_tests.ipynb`, we provide a few examples to demonstrate where one would like to use EE instead of an MLP, BDT, wavelet, or vanilla kNN classifier. 
 
-## How are MLP classifiers supposed to work in this case?   
+---
 
+## How Are MLP Classifiers Supposed to Work in This Case?   
 
-Optimising binary cross-entropy minimises: 
-$$\mathcal{L}(f)=-\mathbb{E}_{x \sim p_{\mathrm{ub}}}[\log (1-f(x))]-\mathbb{E}_{x \sim p_{\text {date }}}[\log f(x)] .$$
+Optimising binary cross-entropy minimises:  
 
-Assuming the universal approximation holds for the NN $f$ optimal solution is
+![loss](https://latex.codecogs.com/svg.image?\mathcal{L}(f)%20=%20-\mathbb{E}_{x\sim%20p_{\rm%20bg}}[\log(1%20-%20f(x))]%20-%20\mathbb{E}_{x\sim%20p_{\rm%20data}}[\log%20f(x)])
 
-$$
-f(x)=\operatorname{Pr}(Y=1 \mid x)=\frac{\pi_1 p_{\text {data }}(x)}{\pi_0 p_{\text {bg }}(x)+\pi_1 p_{\text {data }}(x)} \tag{A}
-$$
-
-Assuming equal priors
+Assuming the universal approximation holds for the NN $f$, the optimal solution is:
 
 $$
-\Rightarrow \mathcal{L}(x) \sim \frac{p_{\text {data }}(x)}{p_{\text {bg }}(x)}
+f(x) = \Pr(Y=1 \mid x) = \frac{\pi_1\,p_{\mathrm{data}}(x)}{\pi_0\,p_{\mathrm{bg}}(x) + \pi_1\,p_{\mathrm{data}}(x)}
 $$
 
-If then the data is a mixture of signal + bkg, the real data distribution is:
+Assuming equal priors:
 
 $$
-p_{\text {data }}(x)=(1-\varepsilon) p_{\text {bg }}(x)+\varepsilon p_{\text {sig }}(x)\tag{B} .
+\Rightarrow \mathcal{L}(x) \sim \frac{p_{\mathrm{data}}(x)}{p_{\mathrm{bg}}(x)}
 $$
 
-Then the true density ratio is
+If the data is a mixture of signal and background, the real data distribution is:
 
 $$
-r(x)=\frac{p_{\text {data }}(x)}{p_{\text {bg }}(x)}=1-\varepsilon+\varepsilon \frac{p_{\text {sig }}(x)}{p_{\text {bg }}(x)} .
+p_{\mathrm{data}}(x) = (1 - \varepsilon) p_{\mathrm{bg}}(x) + \varepsilon p_{\mathrm{sig}}(x)
 $$
 
-and is used as the anomaly detection threshold (see CATHODE paper).
-
--------
-
-In this example case, we have $\epsilon<<1$ and the following distributions:
-
-* **Background** (label \(y=0\))  
-  $$p_{\mathrm{bg}}(x)=\mathcal N\!\bigl(0,I_d\bigr)$$  
-
-* **Signal** (label \(y=1\))  
-  $$p_{\mathrm{sig}}(x)=\mathcal N\!\bigl(0,\sigma^{2}I_d\bigr), \qquad \sigma= 0.05$$  
-
-
-
-Recall (subbing B into A)
+The true density ratio is:
 
 $$
-\Pr(Y=1\mid x)
-       =\frac{\varepsilon\,p_{\mathrm{sig}}(x)}
-              {(1-\varepsilon)\,p_{\mathrm{bg}}(x)
-               +\varepsilon\,p_{\mathrm{sig}}(x)}.
-\tag{1}
+r(x) = \frac{p_{\mathrm{data}}(x)}{p_{\mathrm{bg}}(x)} = 1 - \varepsilon + \varepsilon \frac{p_{\mathrm{sig}}(x)}{p_{\mathrm{bg}}(x)}
 $$
 
+and is used as the anomaly detection threshold.
 
+---
 
+In this example case, we have $\varepsilon \ll 1$ and the following distributions:
 
-For the centred Gaussians the only difference at \(x=0\) is the normalisation constant becasue the bkg follows a std normal:
+* **Background** ($y=0$)  
+  $$p_{\mathrm{bg}}(x) = \mathcal{N}(0, I_d)$$  
 
-$$
-p_{\mathrm{bg}}(0)=\frac1{(2\pi)^{d/2}},
-\qquad
-p_{\mathrm{sig}}(0)=\frac1{(2\pi\sigma^{2})^{d/2}}
-                   =\sigma^{-d}\,p_{\mathrm{bg}}(0),
-$$
+* **Signal** ($y=1$)  
+  $$p_{\mathrm{sig}}(x) = \mathcal{N}(0, \sigma^{2}I_d), \quad \sigma = 0.05$$  
 
-where $d$ is the number of dimentions (here $d=20$).
-
-so  
-$$
-\frac{p_{\mathrm{sig}}(0)}{p_{\mathrm{bg}}(0)}=\sigma^{-d}.
-\tag{2}
-$$
-
-
-
-
-Insert (2) into (1) to obtain the true estimate for the posterior at the origin:
+Recall (substituting $B$ into $A$):
 
 $$
-f^T(0)\sim\Pr(Y=1\mid x=0)
-   =\frac{\varepsilon\,\sigma^{-d}}
-          {(1-\varepsilon)+\varepsilon\,\sigma^{-d}}
-   =\boxed{\displaystyle
-     \frac{\varepsilon/\sigma^{d}}
-          {1-\varepsilon+\varepsilon/\sigma^{d}} }.
-\tag{3}
+\Pr(Y=1 \mid x) = \frac{\varepsilon\,p_{\mathrm{sig}}(x)}{(1 - \varepsilon) p_{\mathrm{bg}}(x) + \varepsilon\,p_{\mathrm{sig}}(x)}
 $$
 
-This $\rightarrow 1$ as $d\rightarrow$ large, as expected since we have a very concentrated anomaly!
-
-
-## Vanishing-gradient effect  
-The above will break down when an anomolous overdensity is represented by a very small number of points, swamped by a very large backgorund. 
-
-With a batch of size $B$ the gradient step on a parameter vector $w$ is
+For the centred Gaussians the only difference at $x=0$ is the normalisation constant because the background follows a standard normal:
 
 $$
-\Delta w=-\eta \frac{1}{B} \sum_{j=1}^B\left[f\left(x_j ; w\right)-y_j\right] \frac{\partial z_j}{\partial w}, \tag{4}
+p_{\mathrm{bg}}(0) = \frac{1}{(2\pi)^{d/2}}, \quad
+p_{\mathrm{sig}}(0) = \frac{1}{(2\pi\sigma^{2})^{d/2}} = \sigma^{-d} p_{\mathrm{bg}}(0)
 $$
 
-where $f = \text{sigmoid}(x)$ is the NN prediction and $\eta$ is the learning rate. For batch sizes of size, say, $B=128$, we will very rarely draw a point with label $y=1$ since, for a 20d Gaussian, the probability of getting a a point within $\sigma = 0.05$ is
+where $d$ is the number of dimensions (here $d = 20$).
 
-$p = \chi^2_\text{CDF} \sim 10^{-36}$.
-
-As  result, the sum in Eqn 4 will not have many contributions from points with label $y=1$. Therefore, for weights whose $\partial z / \partial w$ is non-zero only inside this region, the per-batch gradient is very close 0 unless the batch happens to include at least one sample from $R$.
-
-But  even when one such sample sneaks in, $|f-y| \leq 1$, so the contribution to the update is bounded by $\eta / B$.
-
-Hence the expectation over batches
+So:
 
 $$
-\mathbb{E}[\|\Delta w\|] \lesssim\eta \sigma^d
+\frac{p_{\mathrm{sig}}(0)}{p_{\mathrm{bg}}(0)} = \sigma^{-d}
 $$
 
-which for $d=20$  is astronomically smaller than the typical $O(\eta)$ updates for weights that are driven by the bulk of the data.
+Insert into the previous expression to obtain the posterior at the origin:
 
-## 20-d Gaussian with concentrated density anomaly at the origin - "Needle in a haystack" a.k.a "most anomaly detection tasks in physics?"
+$$
+f^T(0) \sim \Pr(Y=1 \mid x=0) = \frac{\varepsilon\,\sigma^{-d}}{(1 - \varepsilon) + \varepsilon\,\sigma^{-d}} = \frac{\varepsilon / \sigma^d}{1 - \varepsilon + \varepsilon / \sigma^d}
+$$
 
-Here we just consider a 20D gaussian with another very tight gaussian at the origin representing the signal ($n_\text{sig}\sim100$ points). 
+This $\to 1$ as $d \to \infty$, as expected for a very concentrated anomaly.
 
-The reference set contain 100k of the bkg points and teh test has the other 100k plus the 100 signals.
+---
+
+## Vanishing-Gradient Effect  
+
+The above will break down when an anomalous overdensity is represented by a very small number of points, swamped by a very large background. 
+
+With a batch of size $B$, the gradient step on a parameter vector $w$ is:
+
+$$
+\Delta w = -\eta \frac{1}{B} \sum_{j=1}^B \left[f(x_j; w) - y_j\right] \frac{\partial z_j}{\partial w}
+$$
+
+where $f = \text{sigmoid}(x)$ is the NN prediction and $\eta$ is the learning rate.  
+For batch sizes of, say, $B=128$, we will very rarely draw a point with label $y=1$ since, for a 20D Gaussian, the probability of getting a point within $\sigma = 0.05$ is:
+
+$$
+p \approx 10^{-36}
+$$
+
+As a result, the sum will have very few contributions from points with $y=1$. Therefore, for weights whose $\partial z / \partial w$ is non-zero only inside this region, the per-batch gradient is very close to $0$ unless the batch happens to include at least one sample from $R$.
+
+Even when such a sample appears, $|f - y| \leq 1$, so the contribution to the update is bounded by $\eta / B$.
+
+Hence:
+
+$$
+\mathbb{E}[\|\Delta w\|] \lesssim \eta\,\sigma^d
+$$
+
+which for $d=20$ is astronomically smaller than the typical $O(\eta)$ updates for weights driven by the bulk of the data.
+
+---
+
+## 20-D Gaussian With Concentrated Density Anomaly at the Origin – "Needle in a Haystack"
+
+Here we consider a 20D Gaussian with another very tight Gaussian at the origin representing the signal ($n_{\mathrm{sig}} \sim 100$ points). 
+
+The reference set contains 100k background points and the test set has the other 100k plus the 100 signals.
 
 ```python
 d      = 20
@@ -207,7 +195,7 @@ The neural network of course requires extensive hyperparameter tuning, as oppose
 
 
 -----------
-Absolutely shits the bed
+Results in some feature space slices - we see that no anomalous points are recovered:
 
 ![Needle in a haystack: 2D projection](./MLP_comp_plots/mlp_scatter_01_23.png)
 ![Needle in a haystack: 2D projection](./MLP_comp_plots/mlp_scatter_45_67.png)
