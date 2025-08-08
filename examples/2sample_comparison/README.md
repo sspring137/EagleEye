@@ -2,13 +2,20 @@
 
 In `2samp_tests.ipynb`, we provide a few examples to demonstrate where one would like to use EE instead of an MLP, BDT, wavelet, or vanilla kNN classifier. 
 
+Below we show an one of them, specifically a comparisson with an MLP classifier, a method that is often used in particle phyiss for two-sample distribution comparisson. 
+
 ---
 
 ## How Are MLP Classifiers Supposed to Work in This Case?   
 
 Optimising binary cross-entropy minimises:  
 
-![loss](https://latex.codecogs.com/svg.image?\mathcal{L}(f)%20=%20-\mathbb{E}_{x\sim%20p_{\rm%20bg}}[\log(1%20-%20f(x))]%20-%20\mathbb{E}_{x\sim%20p_{\rm%20data}}[\log%20f(x)])
+
+$$
+\text{Loss}(f)=-E_{x\sim p_{\text{bg}}} [\log (1-f(x))]-E_{x \sim p_{\mathrm{data}}}[\log f(x)] .
+$$
+
+
 
 Assuming the universal approximation holds for the NN $f$, the optimal solution is:
 
@@ -208,7 +215,7 @@ Distribution of the likelihood ratio estimate
 
 ![Needle in a haystack: 2D projection](./MLP_comp_plots/mlp_fraction_vs_threshold.png)
 
-...and the roc curve - not sure whats happening here. Still debugging
+...and the roc curve + precision, recall, accuracy
 
 ROC curve: AUC = 0.7782 (Using true labels)
 
