@@ -8,3 +8,6 @@ Air2m_northern_DJF.npy
 # ignore bytecode
 __pycache__/
 *.pyc
+
+__pycache__/
+*.pyc
