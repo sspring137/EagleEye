@@ -4,3 +4,7 @@ anomalies_Air2m_data_NLPval_EE3_Winter.npz
 anomalies_Air2m_data_NLPval_EE3_Summer.npz
 Air2m_northern_JJA.npy
 Air2m_northern_DJF.npy
+
+# ignore bytecode
+__pycache__/
+*.pyc
