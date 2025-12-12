@@ -24,4 +24,4 @@ results, p_values = utils_sistematics.stage2_run_soar(X1, X2, Y, K_M=500, p_ext=
 #     p_values  = payload["p_values"]
 
 #%% Stage 3
-utils_sistematics.stage3_analyze(X1, X2, Y, results, p_values, Z=3.65, K_M=500, p_ext=1e-5, make_plots=True)
+PostProcessing = utils_sistematics.stage3_analyze(X1, X2, Y, results, p_values, Z=3.65, K_M=500, p_ext=1e-5, make_plots=True)
