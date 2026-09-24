@@ -6,9 +6,7 @@
 
 
 ![EagleEye Demo](examples/Basic_usage/putative_threshold_with_histogram.gif)
-<small>
-Above: Multimodal over-densities (red) and under-densities (purple) captured by $\texttt{EagleEye}$. 
-</small>
+
 
 **EagleEye** is a novel, density-based anomaly detection method designed for comparing two datasets to identify deviations in the test dataset. By analyzing the local neighborhood of each point in the test set, EagleEye detects subtle density anomalies without making any assumptions about the underlying data distribution.
 
